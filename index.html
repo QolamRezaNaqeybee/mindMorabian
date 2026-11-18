@@ -435,7 +435,7 @@
         مرکز فنی و حرفهای شماره ۸<br>
         شهید سیدابراهیم رئیسی<br>
         زندان وکیلآباد مشهد<br>
-        نسخه ۱.۴ — مسئولان مرکز + بله + گالری
+        نسخه ۱.۵ — یادآوری مسئولان + توضیحات
       </p>
     </div>
   </div>
@@ -617,6 +617,33 @@
       const s = staff[key] || {};
       staffPhotoData = s.photo || null;
 
+      // تعداد یادآوری مجاز
+      const maxReminders = (key === 'boss') ? 5 : (key === 'deputy') ? 1 : 0;
+      const reminders = s.reminders || [];
+
+      let remindersHtml = '';
+      if (maxReminders > 0) {
+        remindersHtml = `<div class="form-group" style="margin-top:12px"><label>یادآوریها (حداکثر ${maxReminders} مورد)</label>`;
+        for (let i = 0; i < maxReminders; i++) {
+          const r = reminders[i] || { text: '', notify: false };
+          remindersHtml += `
+            <div style="background:#0f172a;border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px">
+              <input type="text" id="st-rem-text-${i}" value="${escapeHtml(r.text || '')}" placeholder="متن یادآوری ${i+1}" style="width:100%;padding:10px;border-radius:8px;background:#1e293b;border:1px solid var(--border);color:var(--text);margin-bottom:8px" />
+              <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;color:var(--muted)">
+                <input type="checkbox" id="st-rem-notify-${i}" ${r.notify ? 'checked' : ''} style="width:18px;height:18px" />
+                نمایش در نوتیفیکیشن موبایل
+              </label>
+            </div>`;
+        }
+        remindersHtml += `</div>`;
+      }
+
+      const notesHtml = (key === 'boss' || key === 'deputy') ? `
+        <div class="form-group">
+          <label>توضیحات / یادداشت</label>
+          <textarea id="st-notes" placeholder="توضیحات و یادآوریهای عمومی..." style="min-height:70px">${escapeHtml(s.notes || '')}</textarea>
+        </div>` : '';
+
       const html = `
         <h3 style="margin-bottom:14px">${role.title}</h3>
         <div class="photo-box">
@@ -631,7 +658,7 @@
               📷 دوربین
               <input type="file" accept="image/*" capture="environment" style="display:none" onchange="handleStaffPhoto(event)" />
             </label>
-            <button type="button" class="btn btn-danger btn-sm" onclick="removeStaffPhoto()" style="${staffPhotoData ? '' : 'display:none'}" id="staffRemoveBtn">حذف</button>
+            <button type="button" class="btn btn-danger btn-sm" onclick="removeStaffPhoto()" style="${staffPhotoData ? '' : 'display:none'}" id="staffRemoveBtn">حذف عکس</button>
           </div>
         </div>
         <div class="form-row">
@@ -646,8 +673,10 @@
           <label>لینک بله</label>
           <input type="url" id="st-bale" value="${escapeHtml(s.bale || '')}" dir="ltr" style="text-align:left" placeholder="https://ble.ir/..." />
         </div>
-        <div class="btn-row">
-          <button class="btn btn-primary" onclick="saveStaffPerson()">ذخیره</button>
+        ${notesHtml}
+        ${remindersHtml}
+        <div class="btn-row" style="margin-top:16px">
+          <button class="btn btn-primary" onclick="saveStaffPerson()">💾 ذخیره مشخصات</button>
           <button class="btn btn-secondary" onclick="closeStaffEdit()">بستن</button>
         </div>
       `;
@@ -655,16 +684,16 @@
       document.getElementById('detailBody').innerHTML = html;
       document.getElementById('detailModal').classList.add('show');
       // مخفی کردن دکمههای عادی جزئیات
-      const btnRow = document.querySelector('#detailModal .btn-row');
-      if (btnRow) btnRow.style.display = 'none';
+      const modalBtns = document.querySelector('#detailModal > .modal > .btn-row');
+      if (modalBtns) modalBtns.style.display = 'none';
     }
 
     function closeStaffEdit() {
       document.getElementById('detailModal').classList.remove('show');
       currentStaffKey = null;
       staffPhotoData = null;
-      const btnRow = document.querySelector('#detailModal .btn-row');
-      if (btnRow) btnRow.style.display = '';
+      const modalBtns = document.querySelector('#detailModal > .modal > .btn-row');
+      if (modalBtns) modalBtns.style.display = '';
     }
 
     function handleStaffPhoto(e) {
@@ -707,17 +736,33 @@
     function saveStaffPerson() {
       if (!currentStaffKey) return;
       const staff = getStaff();
+      const maxReminders = (currentStaffKey === 'boss') ? 5 : (currentStaffKey === 'deputy') ? 1 : 0;
+      const reminders = [];
+      for (let i = 0; i < maxReminders; i++) {
+        const textEl = document.getElementById('st-rem-text-' + i);
+        const notifyEl = document.getElementById('st-rem-notify-' + i);
+        if (textEl) {
+          const text = textEl.value.trim();
+          if (text) {
+            reminders.push({ text, notify: notifyEl ? notifyEl.checked : false });
+          }
+        }
+      }
+      const notesEl = document.getElementById('st-notes');
       staff[currentStaffKey] = {
         name: document.getElementById('st-name').value.trim(),
         family: document.getElementById('st-family').value.trim(),
         nationalId: document.getElementById('st-national').value.trim(),
         phone: document.getElementById('st-phone').value.trim(),
         bale: document.getElementById('st-bale').value.trim(),
-        photo: staffPhotoData
+        photo: staffPhotoData,
+        notes: notesEl ? notesEl.value.trim() : '',
+        reminders: reminders
       };
       saveStaff(staff);
       toast('ذخیره شد ✓');
       closeStaffEdit();
+      showStaffRemindersNotification();
       renderStaff();
     }
 
@@ -888,6 +933,7 @@
     // ==================== Render ====================
     function renderDashboard() {
       renderStaff();
+      showStaffRemindersNotification();
       const records = getRecords();
       let active = 0, soon = 0;
       const soonList = [];
@@ -1173,8 +1219,8 @@
       if (!r) return;
       currentDetailId = id;
       // اطمینان از نمایش دکمههای عادی
-      const btnRow = document.querySelector('#detailModal .btn-row');
-      if (btnRow) btnRow.style.display = '';
+      const modalBtns = document.querySelector('#detailModal > .modal > .btn-row');
+      if (modalBtns) modalBtns.style.display = '';
       document.getElementById('detailTitle').textContent = r.name + ' ' + r.family;
       const st = getStatus(r);
       let photoPart = '';
@@ -1422,6 +1468,32 @@
         } else {
           toast('اجازه داده نشد');
         }
+      });
+    }
+
+    function showStaffRemindersNotification() {
+      if (!('Notification' in window) || Notification.permission !== 'granted') return;
+      const staff = getStaff();
+      const items = [];
+      ['boss', 'deputy'].forEach(key => {
+        const s = staff[key];
+        if (!s || !s.reminders) return;
+        const roleTitle = key === 'boss' ? 'رئیس مرکز' : 'معاون مرکز';
+        s.reminders.forEach(r => {
+          if (r.notify && r.text) {
+            items.push(`${roleTitle}: ${r.text}`);
+          }
+        });
+      });
+      if (items.length === 0) return;
+      const key = 'staff_rem_' + new Date().toDateString();
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, '1');
+      new Notification('یادآوری مسئولان — مرکز ۸', {
+        body: items.slice(0, 5).join('\n'),
+        icon: 'icon-192.png',
+        dir: 'rtl',
+        lang: 'fa'
       });
     }
 
