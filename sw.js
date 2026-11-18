@@ -1,4 +1,4 @@
-const CACHE_NAME = 'morabian-v5';
+const CACHE_NAME = 'morabian-v8';
 const ASSETS = [
   './',
   './index.html',
