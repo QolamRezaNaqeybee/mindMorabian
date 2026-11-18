@@ -1,4 +1,8 @@
-const CACHE_NAME = 'morabian-v8';
+/* Service Worker — نسخه morabian-v17
+   تغییر CACHE_NAME باعث میشود مرورگر کش قدیمی را دور بریزد
+   و فایلهای جدید (از جمله index.html) را دوباره بگیرد.
+*/
+const CACHE_NAME = 'morabian-v17';
 const ASSETS = [
   './',
   './index.html',
@@ -23,32 +27,37 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// برای HTML: اول از شبکه بگیر، اگر نشد از کش
+// برای بقیه فایلها: کش اول
 self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  const isHTML = req.mode === 'navigate' ||
+    (req.headers.get('accept') || '').includes('text/html');
+
+  if (isHTML) {
+    event.respondWith(
+      fetch(req)
+        .then(response => {
+          if (response && response.status === 200) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(req, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(req).then(c => c || caches.match('./index.html')))
+    );
+    return;
+  }
+
   event.respondWith(
-    caches.match(event.request).then(cached => {
+    caches.match(req).then(cached => {
       if (cached) return cached;
-      return fetch(event.request).then(response => {
+      return fetch(req).then(response => {
         if (!response || response.status !== 200 || response.type !== 'basic') return response;
         const clone = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        caches.open(CACHE_NAME).then(cache => cache.put(req, clone));
         return response;
-      }).catch(() => {
-        if (event.request.mode === 'navigate') return caches.match('./index.html');
       });
-    })
-  );
-});
-
-// پشتیبانی ساده از نوتیفیکیشن
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
-      if (list.length > 0) {
-        list[0].focus();
-      } else if (clients.openWindow) {
-        clients.openWindow('./');
-      }
     })
   );
 });
