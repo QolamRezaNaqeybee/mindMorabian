@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="theme-color" content="#1e40af" />
-  <meta name="description" content="مدیریت مربیان و دورههای مرکز فنی و حرفهای شماره ۸ شهید سیدابراهیم رئیسی" />
+  <meta name="description" content="مدیریت مربیان و دوره های مرکز فنی و حرفهای شماره ۸ شهید سیدابراهیم رئیسی" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="icon-192.png" type="image/png" />
@@ -435,7 +435,7 @@
         مرکز فنی و حرفهای شماره ۸<br>
         شهید سیدابراهیم رئیسی<br>
         زندان وکیلآباد مشهد<br>
-        نسخه ۱.۵ — یادآوری مسئولان + توضیحات
+        نسخه ۱.۶ — رفع دکمه ذخیره مسئولان + مستندات کامل
       </p>
     </div>
   </div>
@@ -472,7 +472,45 @@
   </div>
 
   <script>
+    /**
+     * ╔══════════════════════════════════════════════════════════════════════╗
+     * ║          مستندات کامل برنامه «مدیریت مربیان مرکز ۸»                 ║
+     * ║                                                                      ║
+     * ║  این برنامه یک وباپلیکیشن تکصفحهای (SPA) است که کاملاً روی       ║
+     * ║  مرورگر کاربر اجرا میشود و هیچ سروری ندارد. تمام دادهها در         ║
+     * ║  localStorage مرورگر ذخیره میشوند.                                 ║
+     * ║                                                                      ║
+     * ║  ساختار کلی برنامه:                                                 ║
+     * ║  ─────────────────                                                   ║
+     * ║  1. بخش HTML: صفحات داشبورد، لیست، ثبت، ابزار + مودال جزئیات      ║
+     * ║  2. بخش CSS: استایلهای تیره، کارتها، دکمهها، مودال               ║
+     * ║  3. بخش JavaScript: تمام منطق برنامه                               ║
+     * ║                                                                      ║
+     * ║  بخشهای اصلی جاوااسکریپت:                                          ║
+     * ║  ─────────────────────────                                           ║
+     * ║  • تبدیل تاریخ شمسی ↔ میلادی (Jalali Date Helpers)                 ║
+     * ║  • ذخیرهسازی دادهها در localStorage (Storage)                     ║
+     * ║  • مدیریت مسئولان مرکز (Staff)  ← اینجا مشکل دکمه ذخیره حل شد     ║
+     * ║  • مدیریت روزهای کلاس (Days of Week)                               ║
+     * ║  • مدیریت عکس مربی (Photo Handling)                                ║
+     * ║  • نمایش داشبورد و لیست (Dashboard & List)                         ║
+     * ║  • ثبت و ویرایش مربی/دوره (Add / Edit Record)                      ║
+     * ║  • مودال جزئیات (Detail Modal)                                     ║
+     * ║  • خروجی اکسل و HTML و پشتیبانگیری (Export / Backup)              ║
+     * ║  • نوتیفیکیشن مرورگر (Notifications)                               ║
+     * ║  • راهاندازی اولیه (Init)                                          ║
+     * ║                                                                      ║
+     * ║  کلیدهای localStorage:                                              ║
+     * ║  • morabian_records_v1  → لیست تمام مربیان و دورهها               ║
+     * ║  • morabian_staff_v1    → اطلاعات مسئولان مرکز                     ║
+     * ║                                                                      ║
+     * ║  نسخه فعلی: ۱.۵ (با رفع مشکل دکمه ذخیره مسئولان)                   ║
+     * ╚══════════════════════════════════════════════════════════════════════╝
+     */
+
     // ==================== Jalali Date Helpers ====================
+    // این بخش توابع تبدیل تاریخ شمسی به میلادی و برعکس را فراهم میکند
+    // چون مرورگر به صورت پیشفرض فقط تاریخ میلادی را میفهمد.
     function div(a, b) { return Math.floor(a / b); }
     function mod(a, b) { return a - Math.floor(a / b) * b; }
 
@@ -563,7 +601,28 @@
     }
 
     // ==================== Staff (مسئولان مرکز) ====================
+    /**
+     * این بخش مسئول مدیریت اطلاعات ۴ نقش اصلی مرکز است:
+     *   - boss   → رئیس مرکز
+     *   - deputy → معاون مرکز
+     *   - exam   → مسئول آزمون
+     *   - edu    → مسئول آموزش
+     *
+     * دادهها در کلید morabian_staff_v1 داخل localStorage ذخیره میشوند.
+     * ساختار هر نقش به این شکل است:
+     * {
+     *   name, family, nationalId, phone, bale, photo,
+     *   notes,          // فقط برای رئیس و معاون
+     *   reminders: [    // فقط برای رئیس و معاون
+     *     { text: "...", notify: true/false }
+     *   ]
+     * }
+     */
+
+    // کلید ذخیرهسازی اطلاعات مسئولان در localStorage
     const STAFF_KEY = 'morabian_staff_v1';
+
+    // تعریف نقشها + عنوان فارسی + کلاس رنگی کارت
     const STAFF_ROLES = [
       { key: 'boss',   title: 'رئیس مرکز',     colorClass: 'role-boss' },
       { key: 'deputy', title: 'معاون مرکز',    colorClass: 'role-deputy' },
@@ -571,16 +630,29 @@
       { key: 'edu',    title: 'مسئول آموزش',   colorClass: 'role-edu' }
     ];
 
+    /**
+     * خواندن تمام اطلاعات مسئولان از حافظه مرورگر
+     * اگر دادهای نباشد یا خراب باشد، شیء خالی برمیگرداند
+     */
     function getStaff() {
       try {
         return JSON.parse(localStorage.getItem(STAFF_KEY) || '{}');
       } catch { return {}; }
     }
 
+    /**
+     * ذخیره کل آبجکت مسئولان در localStorage
+     * @param {Object} obj - آبجکت کامل مسئولان
+     */
     function saveStaff(obj) {
       localStorage.setItem(STAFF_KEY, JSON.stringify(obj));
     }
 
+    /**
+     * رسم کارتهای مسئولان در بالای داشبورد
+     * هر کارت با رنگ مخصوص خودش نمایش داده میشود و با کلیک
+     * تابع openStaffEdit فراخوانی میشود.
+     */
     function renderStaff() {
       const staff = getStaff();
       const box = document.getElementById('staffSection');
@@ -610,17 +682,55 @@
     let currentStaffKey = null;
     let staffPhotoData = null;
 
+    /**
+     * ========================================================================
+     * تابع openStaffEdit(key)
+     * ------------------------------------------------------------------------
+     * کار این تابع: وقتی کاربر روی یکی از کارتهای مسئولان (رئیس مرکز، معاون،
+     * مسئول آزمون یا مسئول آموزش) کلیک میکند، این تابع اجرا میشود و فرم
+     * ویرایش مشخصات آن مسئول را داخل مودال باز میکند.
+     *
+     * پارامتر:
+     *   key → یکی از مقادیر: 'boss' | 'deputy' | 'exam' | 'edu'
+     *
+     * کارهایی که این تابع به ترتیب انجام میدهد:
+     *   1. کلید فعلی (currentStaffKey) را ذخیره میکند تا بعداً در ذخیرهسازی
+     *      بدانیم کدام مسئول در حال ویرایش است.
+     *   2. اطلاعات قبلی آن مسئول را از localStorage میخواند.
+     *   3. اگر عکس قبلی وجود داشته باشد، آن را در متغیر staffPhotoData میگذارد.
+     *   4. تعداد یادآوری مجاز را بر اساس نقش تعیین میکند:
+     *        - رئیس مرکز (boss) → حداکثر ۵ یادآوری
+     *        - معاون مرکز (deputy) → حداکثر ۱ یادآوری
+     *        - بقیه نقشها → صفر
+     *   5. HTML فرم را میسازد (عکس + نام + فامیل + کد ملی + تماس + لینک بله
+     *      + توضیحات + یادآوریها).
+     *   6. دکمه ذخیره را دیگر داخل بدنه فرم نمیگذارد (مشکل قبلی همین بود).
+     *      به جای آن، دکمههای پایین مودال را کاملاً عوض میکند تا همیشه
+     *      دکمه «ذخیره» و «بستن» ثابت و قابل مشاهده باشند.
+     * ========================================================================
+     */
     function openStaffEdit(key) {
+      // ذخیره کلید مسئول فعلی تا در تابع saveStaffPerson بتوانیم بفهمیم کدام نقش را ذخیره کنیم
       currentStaffKey = key;
+
+      // پیدا کردن عنوان فارسی نقش (مثلاً «رئیس مرکز»)
       const role = STAFF_ROLES.find(r => r.key === key);
+
+      // خواندن تمام اطلاعات مسئولان از حافظه مرورگر
       const staff = getStaff();
+
+      // گرفتن اطلاعات همین نقش خاص (اگر قبلاً ثبت نشده باشد، شیء خالی میگیریم)
       const s = staff[key] || {};
+
+      // اگر عکس قبلی وجود دارد، آن را در متغیر موقت نگه میداریم
       staffPhotoData = s.photo || null;
 
-      // تعداد یادآوری مجاز
+      // تعیین حداکثر تعداد یادآوری بر اساس نقش
+      // رئیس مرکز میتواند تا ۵ یادآوری داشته باشد، معاون فقط ۱ تا
       const maxReminders = (key === 'boss') ? 5 : (key === 'deputy') ? 1 : 0;
       const reminders = s.reminders || [];
 
+      // ساخت HTML مربوط به بخش یادآوریها (فقط برای رئیس و معاون)
       let remindersHtml = '';
       if (maxReminders > 0) {
         remindersHtml = `<div class="form-group" style="margin-top:12px"><label>یادآوریها (حداکثر ${maxReminders} مورد)</label>`;
@@ -638,12 +748,14 @@
         remindersHtml += `</div>`;
       }
 
+      // ساخت HTML بخش توضیحات (فقط برای رئیس و معاون)
       const notesHtml = (key === 'boss' || key === 'deputy') ? `
         <div class="form-group">
           <label>توضیحات / یادداشت</label>
           <textarea id="st-notes" placeholder="توضیحات و یادآوریهای عمومی..." style="min-height:70px">${escapeHtml(s.notes || '')}</textarea>
         </div>` : '';
 
+      // ساخت کل HTML بدنه فرم (بدون دکمه ذخیره — دکمه ذخیره را جداگانه در پایین مودال قرار میدهیم)
       const html = `
         <h3 style="margin-bottom:14px">${role.title}</h3>
         <div class="photo-box">
@@ -675,27 +787,66 @@
         </div>
         ${notesHtml}
         ${remindersHtml}
-        <div class="btn-row" style="margin-top:16px">
-          <button class="btn btn-primary" onclick="saveStaffPerson()">💾 ذخیره مشخصات</button>
-          <button class="btn btn-secondary" onclick="closeStaffEdit()">بستن</button>
-        </div>
       `;
+
+      // تنظیم عنوان مودال
       document.getElementById('detailTitle').textContent = 'ویرایش مسئول';
+
+      // قرار دادن HTML فرم داخل بدنه مودال
       document.getElementById('detailBody').innerHTML = html;
+
+      // نمایش مودال
       document.getElementById('detailModal').classList.add('show');
-      // مخفی کردن دکمههای عادی جزئیات
-      const modalBtns = document.querySelector('#detailModal > .modal > .btn-row');
-      if (modalBtns) modalBtns.style.display = 'none';
+
+      // ========================================================================
+      // بخش بسیار مهم (رفع مشکل دکمه ذخیره):
+      // به جای مخفی کردن دکمههای پایین، محتوای آنها را کاملاً عوض میکنیم
+      // تا دکمه «ذخیره» همیشه ثابت در پایین مودال باشد و کاربر مجبور به اسکرول نباشد.
+      // ========================================================================
+      const modalBtns = document.querySelector('#detailModal .btn-row');
+      if (modalBtns) {
+        modalBtns.innerHTML = `
+          <button class="btn btn-primary" onclick="saveStaffPerson()">💾 ذخیره</button>
+          <button class="btn btn-secondary" onclick="closeStaffEdit()">بستن</button>
+        `;
+      }
     }
 
+    /**
+     * ========================================================================
+     * تابع closeStaffEdit()
+     * ------------------------------------------------------------------------
+     * کار این تابع: بستن مودال ویرایش مسئول و برگرداندن دکمههای پیشفرض مودال
+     * به حالت اصلی (ویرایش / حذف / بستن) تا وقتی کاربر روی جزئیات یک مربی کلیک کرد
+     * دکمههای صحیح نمایش داده شوند.
+     * ========================================================================
+     */
     function closeStaffEdit() {
+      // بستن مودال
       document.getElementById('detailModal').classList.remove('show');
+
+      // پاک کردن متغیرهای موقت
       currentStaffKey = null;
       staffPhotoData = null;
-      const modalBtns = document.querySelector('#detailModal > .modal > .btn-row');
-      if (modalBtns) modalBtns.style.display = '';
+
+      // برگرداندن دکمههای پیشفرض مودال جزئیات مربی
+      // (این کار خیلی مهم است تا در دفعات بعدی که جزئیات مربی باز میشود،
+      // دکمههای «ویرایش / حذف / بستن» درست نمایش داده شوند)
+      const modalBtns = document.querySelector('#detailModal .btn-row');
+      if (modalBtns) {
+        modalBtns.innerHTML = `
+          <button class="btn btn-primary btn-sm" onclick="editFromDetail()">ویرایش</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteFromDetail()">حذف</button>
+          <button class="btn btn-secondary btn-sm" onclick="closeDetail()">بستن</button>
+        `;
+      }
     }
 
+    /**
+     * مدیریت انتخاب عکس برای مسئول (از گالری یا دوربین)
+     * عکس را کوچک میکند (حداکثر عرض ۳۰۰ پیکسل) و با کیفیت ۰.۷ به base64 تبدیل میکند
+     * تا حجم دادههای ذخیره شده در localStorage زیاد نشود.
+     */
     function handleStaffPhoto(e) {
       const file = e.target.files[0];
       if (!file || !file.type.startsWith('image/')) return;
@@ -703,12 +854,14 @@
       reader.onload = function(ev) {
         const img = new Image();
         img.onload = function() {
+          // محدود کردن عرض عکس به ۳۰۰ پیکسل برای کاهش حجم
           const maxW = 300;
           let w = img.width, h = img.height;
           if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
           const canvas = document.createElement('canvas');
           canvas.width = w; canvas.height = h;
           canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          // تبدیل به JPEG با کیفیت ۷۰٪ و ذخیره در متغیر موقت
           staffPhotoData = canvas.toDataURL('image/jpeg', 0.7);
           const preview = document.getElementById('staffPhotoPreview');
           const placeholder = document.getElementById('staffPhotoPlaceholder');
@@ -723,6 +876,10 @@
       e.target.value = '';
     }
 
+    /**
+     * حذف عکس مسئول از فرم ویرایش
+     * متغیر موقت staffPhotoData را پاک میکند و رابط کاربری را به حالت بدون عکس برمیگرداند
+     */
     function removeStaffPhoto() {
       staffPhotoData = null;
       const preview = document.getElementById('staffPhotoPreview');
@@ -733,36 +890,80 @@
       if (removeBtn) removeBtn.style.display = 'none';
     }
 
+    /**
+     * ========================================================================
+     * تابع saveStaffPerson()
+     * ------------------------------------------------------------------------
+     * کار این تابع: خواندن تمام مقادیر فرم ویرایش مسئول و ذخیره آنها در
+     * localStorage.
+     *
+     * مراحل کار:
+     *   1. اگر هیچ مسئول فعالی انتخاب نشده باشد، خارج میشود.
+     *   2. اطلاعات فعلی همه مسئولان را از حافظه میخواند.
+     *   3. یادآوریها را از فیلدهای فرم جمعآوری میکند (فقط آنهایی که متن دارند).
+     *   4. یک آبجکت جدید برای مسئول فعلی میسازد که شامل:
+     *        نام، فامیل، کد ملی، تلفن، لینک بله، عکس، توضیحات، لیست یادآوریها
+     *   5. آبجکت را در جای صحیح داخل staff ذخیره میکند.
+     *   6. کل staff را در localStorage مینویسد.
+     *   7. پیام موفقیت نشان میدهد، مودال را میبندد،
+     *      نوتیفیکیشن یادآوریها را چک میکند و کارتهای داشبورد را دوباره رسم میکند.
+     * ========================================================================
+     */
     function saveStaffPerson() {
+      // اگر هیچ مسئولی در حال ویرایش نباشد، کاری نکن
       if (!currentStaffKey) return;
+
+      // خواندن دادههای فعلی
       const staff = getStaff();
+
+      // تعیین تعداد یادآوری مجاز بر اساس نقش
       const maxReminders = (currentStaffKey === 'boss') ? 5 : (currentStaffKey === 'deputy') ? 1 : 0;
+
+      // جمعآوری یادآوریهایی که کاربر نوشته است
       const reminders = [];
       for (let i = 0; i < maxReminders; i++) {
         const textEl = document.getElementById('st-rem-text-' + i);
         const notifyEl = document.getElementById('st-rem-notify-' + i);
         if (textEl) {
           const text = textEl.value.trim();
+          // فقط اگر متن نوشته شده باشد، آن را ذخیره میکنیم
           if (text) {
-            reminders.push({ text, notify: notifyEl ? notifyEl.checked : false });
+            reminders.push({
+              text: text,
+              notify: notifyEl ? notifyEl.checked : false
+            });
           }
         }
       }
+
+      // خواندن فیلد توضیحات (ممکن است برای بعضی نقشها وجود نداشته باشد)
       const notesEl = document.getElementById('st-notes');
+
+      // ساخت آبجکت کامل مشخصات این مسئول
       staff[currentStaffKey] = {
         name: document.getElementById('st-name').value.trim(),
         family: document.getElementById('st-family').value.trim(),
         nationalId: document.getElementById('st-national').value.trim(),
         phone: document.getElementById('st-phone').value.trim(),
         bale: document.getElementById('st-bale').value.trim(),
-        photo: staffPhotoData,
-        notes: notesEl ? notesEl.value.trim() : '',
-        reminders: reminders
+        photo: staffPhotoData,                          // عکس به صورت base64
+        notes: notesEl ? notesEl.value.trim() : '',     // توضیحات
+        reminders: reminders                            // لیست یادآوریها
       };
+
+      // ذخیره در localStorage
       saveStaff(staff);
+
+      // نمایش پیام موفقیت
       toast('ذخیره شد ✓');
+
+      // بستن مودال و بازگرداندن دکمههای پیشفرض
       closeStaffEdit();
+
+      // اگر یادآوریهایی با تیک نوتیفیکیشن وجود داشته باشد، نوتیفیکیشن نشان بده
       showStaffRemindersNotification();
+
+      // بهروزرسانی کارتهای مسئولان در داشبورد
       renderStaff();
     }
 
