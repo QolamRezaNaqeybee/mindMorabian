@@ -614,7 +614,7 @@
         <strong style="color:var(--text)">شماره تماس:</strong>
         <a href="tel:09303068494" style="color:var(--primary);direction:ltr;display:inline-block">۰۹۳۰۳۰۶۸۴۹۴</a>
         <br><br>
-        نسخه ۲.۱ — فیلدهای دوره + ساعت و تاریخ + پاکسازی نشست
+        نسخه ۲.۲ — اصلاح هویت مربی، رمز مسئولان، رمز تکراری
       </p>
       <button type="button" class="btn btn-secondary" style="margin-top:12px" onclick="openHelpGuide()">
         ❓ راهنمای جامع برنامه
@@ -873,16 +873,28 @@
 
     /**
      * آیا کاربر فعلی اجازه ویرایش این مربی را دارد؟
-     * @param {object} record - رکورد مربی
+     * هویت مربی با کد ملی است (نه id یک دوره) تا همه دورههای همان نفر قابل ویرایش باشد.
      */
     function canEditInstructor(record) {
       const role = getCurrentRole();
       if (!role) return false;
-      if (role === 'boss') return true;                    // رئیس همه چیز میتواند
-      if (role === 'deputy') return true;                  // معاون هم میتواند مربیان را ویرایش کند
-      if (role === 'instructor' && currentAuth.id === record.id) return true; // خود مربی
+      if (role === 'boss') return true;
+      if (role === 'deputy') return true;
+      if (role === 'instructor' && currentAuth && currentAuth.nationalId &&
+          record && record.nationalId && currentAuth.nationalId === record.nationalId) {
+        return true;
+      }
       // کارشناسان آزمون و آموزش حق ویرایش ندارند
       return false;
+    }
+
+    /**
+     * رمز مؤثر یک نفر: رمز ذخیرهشده یا در غیر این صورت پیشفرض از موبایل
+     */
+    function resolvePassword(person) {
+      if (!person) return '';
+      if (person.password && String(person.password).trim()) return String(person.password).trim();
+      return getDefaultPassword(person.phone);
     }
 
     /**
@@ -940,72 +952,76 @@
 
         const settings = getAuthSettings();
         const staff = getStaff();
-        let found = null;
+        /**
+         * جمعآوری همه هویتهایی که این رمز با آنها یکی است.
+         * اگر بیش از یک هویت یکتا پیدا شود → رمز تکراری → ورود رد میشود.
+         * کلید یکتا برای مسئولان: staff:boss و ...
+         * کلید یکتا برای مربی: instructor:کدملی
+         */
+        const matches = [];
 
-        // اول رمز رئیس مرکز را چک کن (دسترسی کامل)
-        if (staff.boss) {
-          const bossPass = staff.boss.password || getDefaultPassword(staff.boss.phone);
-          if (pass === bossPass) {
-            found = {
-              type: 'boss',
-              id: 'boss',
-              name: (staff.boss.name || '') + ' ' + (staff.boss.family || ''),
-              expiresAt: Date.now() + settings.bossDeputyMinutes * 60 * 1000
-            };
+        ['boss', 'deputy', 'exam', 'edu'].forEach(k => {
+          const person = staff[k];
+          if (!person) return;
+          const p = resolvePassword(person);
+          if (p && pass === p) {
+            matches.push({
+              key: 'staff:' + k,
+              type: k,
+              id: k,
+              nationalId: person.nationalId || '',
+              name: ((person.name || '') + ' ' + (person.family || '')).trim() || k
+            });
           }
-        }
+        });
 
-        // معاون
-        if (!found && staff.deputy) {
-          const p = staff.deputy.password || getDefaultPassword(staff.deputy.phone);
-          if (pass === p) {
-            found = {
-              type: 'deputy',
-              id: 'deputy',
-              name: (staff.deputy.name || '') + ' ' + (staff.deputy.family || ''),
-              expiresAt: Date.now() + settings.bossDeputyMinutes * 60 * 1000
-            };
+        // مربیان: بر اساس کد ملی یکتا (چند دوره یک نفر = یک هویت)
+        const seenNational = {};
+        getRecords().forEach(r => {
+          const nid = r.nationalId || '';
+          if (!nid || seenNational[nid]) return;
+          const p = resolvePassword(r);
+          if (p && pass === p) {
+            seenNational[nid] = true;
+            matches.push({
+              key: 'instructor:' + nid,
+              type: 'instructor',
+              id: r.id, // برای سازگاری؛ معیار اصلی nationalId است
+              nationalId: nid,
+              name: ((r.name || '') + ' ' + (r.family || '')).trim() || nid
+            });
           }
-        }
+        });
 
-        // کارشناسان
-        if (!found) {
-          ['exam', 'edu'].forEach(k => {
-            if (found || !staff[k]) return;
-            const p = staff[k].password || getDefaultPassword(staff[k].phone);
-            if (pass === p) {
-              found = {
-                type: k,
-                id: k,
-                name: (staff[k].name || '') + ' ' + (staff[k].family || ''),
-                expiresAt: Date.now() + settings.expertMinutes * 60 * 1000
-              };
-            }
-          });
-        }
-
-        // مربیان
-        if (!found) {
-          const records = getRecords();
-          for (const r of records) {
-            const p = r.password || getDefaultPassword(r.phone);
-            if (pass === p) {
-              found = {
-                type: 'instructor',
-                id: r.id,
-                name: (r.name || '') + ' ' + (r.family || ''),
-                expiresAt: Date.now() + settings.instructorMinutes * 60 * 1000
-              };
-              break;
-            }
-          }
-        }
-
-        if (!found) {
+        if (matches.length === 0) {
           errEl.textContent = 'رمز نادرست است';
           errEl.style.display = 'block';
           return;
         }
+
+        if (matches.length > 1) {
+          errEl.textContent = 'این رمز برای بیش از یک نفر یکسان است. لطفاً رمز را عوض کنید تا تکراری نباشد.';
+          errEl.style.display = 'block';
+          return;
+        }
+
+        const m = matches[0];
+        let expiresMs;
+        if (m.type === 'boss' || m.type === 'deputy') {
+          expiresMs = settings.bossDeputyMinutes * 60 * 1000;
+        } else if (m.type === 'exam' || m.type === 'edu') {
+          expiresMs = settings.expertMinutes * 60 * 1000;
+        } else {
+          expiresMs = settings.instructorMinutes * 60 * 1000;
+        }
+
+        const found = {
+          type: m.type,
+          id: m.id,
+          nationalId: m.nationalId || '',
+          name: m.name,
+          expiresAt: Date.now() + expiresMs
+        };
 
         currentAuth = found;
         document.body.removeChild(overlay);
@@ -1440,6 +1456,15 @@
           <label>لینک بله</label>
           <input type="url" id="st-bale" value="${escapeHtml(s.bale || '')}" dir="ltr" style="text-align:left" placeholder="https://ble.ir/..." />
         </div>
+        <div class="form-group">
+          <label>رمز عبور این مسئول</label>
+          <div style="font-size:0.8rem;color:var(--muted);margin-bottom:6px">
+            رمز پیشفرض از شماره تماس ساخته میشود.
+            ${s.password ? '<span style="color:var(--success)">رمز سفارشی قبلاً تنظیم شده است.</span>' : '<span style="color:var(--warning)">هنوز رمز سفارشی تنظیم نشده.</span>'}
+          </div>
+          <input type="text" id="st-password" maxlength="8" placeholder="رمز جدید (۴ تا ۸ کاراکتر) — خالی = بدون تغییر" style="margin-bottom:6px" />
+          <input type="text" id="st-password2" maxlength="8" placeholder="تکرار رمز جدید" />
+        </div>
         ${notesHtml}
         ${remindersHtml}
         ${timeoutHtml}
@@ -1596,6 +1621,23 @@
       // خواندن فیلد توضیحات (ممکن است برای بعضی نقشها وجود نداشته باشد)
       const notesEl = document.getElementById('st-notes');
 
+      // مدیریت رمز مسئول: اگر فیلد پر شده ذخیره شود؛ وگرنه رمز قبلی حفظ شود
+      const prev = staff[currentStaffKey] || {};
+      let passwordToKeep = prev.password || '';
+      const stPass1 = ((document.getElementById('st-password') || {}).value || '').trim();
+      const stPass2 = ((document.getElementById('st-password2') || {}).value || '').trim();
+      if (stPass1 || stPass2) {
+        if (stPass1 !== stPass2) {
+          toast('رمز و تکرار آن یکسان نیست');
+          return;
+        }
+        if (stPass1.length < 4 || stPass1.length > 8) {
+          toast('رمز باید بین ۴ تا ۸ کاراکتر باشد');
+          return;
+        }
+        passwordToKeep = stPass1;
+      }
+
       // ساخت آبجکت کامل مشخصات این مسئول
       staff[currentStaffKey] = {
         name: document.getElementById('st-name').value.trim(),
@@ -1603,9 +1645,10 @@
         nationalId: document.getElementById('st-national').value.trim(),
         phone: document.getElementById('st-phone').value.trim(),
         bale: document.getElementById('st-bale').value.trim(),
-        photo: staffPhotoData,                          // عکس به صورت base64
-        notes: notesEl ? notesEl.value.trim() : '',     // توضیحات
-        reminders: reminders                            // لیست یادآوریها
+        photo: staffPhotoData,
+        notes: notesEl ? notesEl.value.trim() : '',
+        reminders: reminders,
+        password: passwordToKeep
       };
 
       // ذخیره در localStorage
@@ -2551,13 +2594,13 @@
           return;
         }
         if (role === 'instructor') {
-          // پیدا کردن کد ملی مربی واردشده
-          const rec = getRecords().find(r => r.id === currentAuth.id);
-          if (!rec) {
+          // هویت مربی با کد ملی
+          const nid = (currentAuth && currentAuth.nationalId) || '';
+          if (!nid) {
             toast('اطلاعات این مربی یافت نشد');
             return;
           }
-          downloadInstructorExcel(rec.nationalId, false);
+          downloadInstructorExcel(nid, false);
           return;
         }
         if (role === 'boss' || role === 'deputy') {
@@ -3006,7 +3049,7 @@
 
         <div style="margin-top:18px;padding-top:12px;border-top:1px solid var(--border);font-size:0.8rem;color:var(--muted);text-align:center">
           مرکز فنی و حرفهای شماره ۸ — شهید سیدابراهیم رئیسی — زندان وکیلآباد مشهد<br>
-          نسخه ۲.۱ • فیلدهای دوره و ساعت هدر
+          نسخه ۲.۲ • اصلاح سطح دسترسی و رمز
         </div>
       `;
       document.getElementById('helpModal').classList.add('show');
