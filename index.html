@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="theme-color" content="#1e40af" />
-  <meta name="description" content="مدیریت مربیان و دورههای مرکز فنی و حرفهای شماره ۸ شهید سیدابراهیم رئیسی" />
+  <meta name="description" content="مدیریت مربیان و دوره های مرکز فنی و حرفه ای شماره ۸ شهید سیدابراهیم رئیسی" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="icon-192.png" type="image/png" />
@@ -368,7 +368,7 @@
       </div>
     </div>
     <h1>مدیریت مربیان مرکز ۸</h1>
-    <p>مرکز فنی و حرفهای شهید سیدابراهیم رئیسی — زندان وکیلآباد</p>
+    <p>مرکز فنی و حرفه ای شهید سیدابراهیم رئیسی — زندان وکیل آباد</p>
   </div>
 
   <!-- Dashboard -->
@@ -386,7 +386,7 @@
     <div class="alert-banner" id="alertBanner">
       <div class="icon">⚠️</div>
       <div>
-        <strong>دورههایی که تا ۷ روز آینده تمام میشوند:</strong>
+        <strong>دوره هایی که تا ۷ روز آینده تمام میشوند:</strong>
         <ul id="alertList"></ul>
       </div>
     </div>
@@ -408,7 +408,7 @@
       <div class="filter-chip active" data-filter="all" onclick="setFilter(this)">همه</div>
       <div class="filter-chip" data-filter="active" onclick="setFilter(this)">فعال</div>
       <div class="filter-chip" data-filter="soon" onclick="setFilter(this)">رو به اتمام</div>
-      <div class="filter-chip" data-filter="ended" onclick="setFilter(this)">تمامشده</div>
+      <div class="filter-chip" data-filter="ended" onclick="setFilter(this)">تمام شده</div>
     </div>
     <div id="listContainer"></div>
   </div>
@@ -606,15 +606,15 @@
     <div class="card" style="margin-top:12px">
       <h3 style="margin-bottom:8px">درباره</h3>
       <p style="font-size:0.85rem;color:var(--muted);line-height:1.8">
-        مرکز فنی و حرفهای شماره ۸<br>
+        مرکز فنی و حرفه ای شماره ۸<br>
         شهید سیدابراهیم رئیسی<br>
-        زندان وکیلآباد مشهد<br><br>
+        زندان وکیل آباد مشهد<br><br>
         <strong style="color:var(--text)">ایده، نظریه، مجری، طراح برنامه:</strong><br>
         غلامرضا نقیبی<br>
         <strong style="color:var(--text)">شماره تماس:</strong>
         <a href="tel:09303068494" style="color:var(--primary);direction:ltr;display:inline-block">۰۹۳۰۳۰۶۸۴۹۴</a>
         <br><br>
-        نسخه ۲.۲ — اصلاح هویت مربی، رمز مسئولان، رمز تکراری
+        نسخه ۲.۳ — اصلاح نگارش فارسی + تقویت مستندات کد
       </p>
       <button type="button" class="btn btn-secondary" style="margin-top:12px" onclick="openHelpGuide()">
         ❓ راهنمای جامع برنامه
@@ -694,7 +694,7 @@
      * ║  • راهاندازی اولیه (Init)                                          ║
      * ║                                                                      ║
      * ║  کلیدهای localStorage:                                              ║
-     * ║  • morabian_records_v1  → لیست تمام مربیان و دورهها               ║
+     * ║  • morabian_records_v1  → لیست تمام مربیان و دوره ها               ║
      * ║  • morabian_staff_v1    → اطلاعات مسئولان مرکز                     ║
      * ║                                                                      ║
      * ║  نسخه فعلی: ۱.۵ (با رفع مشکل دکمه ذخیره مسئولان)                   ║
@@ -775,6 +775,17 @@
       if (n === 1) return 'فردا تمام میشود';
       return n + ' روز مانده';
     }
+
+    /**
+     * ═══════════════════════════════════════════════════════════════════
+     * قرار ثابت مستندسازی و کیفیت (برای تمام برنامههای این پروژه و بعد از آن)
+     * 1) توضیح جزءبهجزء برای هر بخش، تابع و فرمان داخل کد
+     * 2) در صورت ابهام، قبل از اعمال از کاربر سؤال شود
+     * 3) قبل از اعلام اتمام، منطق و خروجی چک شود و مشکل گزارش گردد
+     * 4) راهنمای داخل برنامه با هر قابلیت جدید همزمان بهروز شود
+     * 5) در راهنما رمز پیشفرض فاش نشود؛ با ستاره صورتی/قرمز چشمکزن پوشانده شود
+     * ═══════════════════════════════════════════════════════════════════
+     */
 
     // ==================== Storage ====================
     const STORAGE_KEY = 'morabian_records_v1';
@@ -873,7 +884,7 @@
 
     /**
      * آیا کاربر فعلی اجازه ویرایش این مربی را دارد؟
-     * هویت مربی با کد ملی است (نه id یک دوره) تا همه دورههای همان نفر قابل ویرایش باشد.
+     * هویت مربی با کد ملی است (نه id یک دوره) تا همه دوره های همان نفر قابل ویرایش باشد.
      */
     function canEditInstructor(record) {
       const role = getCurrentRole();
@@ -1844,7 +1855,7 @@
     function statusBadge(status) {
       if (status === 'active') return '<span class="badge badge-active">فعال</span>';
       if (status === 'soon') return '<span class="badge badge-soon">رو به اتمام</span>';
-      if (status === 'ended') return '<span class="badge badge-ended">تمامشده</span>';
+      if (status === 'ended') return '<span class="badge badge-ended">تمام شده</span>';
       return '';
     }
 
@@ -1910,7 +1921,7 @@
                   📅 پایان: ${r.endDate} — ${formatDaysLeft(daysUntil(r.endDate))}<br>
                   📆 ${formatDays(r.days)}<br>
                   <span style="color:var(--success)">● فعال: ${stats.active}</span> &nbsp;
-                  <span style="color:var(--muted)">● تمامشده: ${stats.ended}</span>
+                  <span style="color:var(--muted)">● تمام شده: ${stats.ended}</span>
                 </div>
               </div>
             </div>`;
@@ -1958,7 +1969,7 @@
                 📅 ${r.startDate} ← ${r.endDate} (${formatDaysLeft(daysUntil(r.endDate))})<br>
                 📆 ${formatDays(r.days)}<br>
                 <span style="color:var(--success)">● فعال: ${stats.active}</span> &nbsp;
-                <span style="color:var(--muted)">● تمامشده: ${stats.ended}</span>
+                <span style="color:var(--muted)">● تمام شده: ${stats.ended}</span>
               </div>
             </div>
           </div>`;
@@ -2050,7 +2061,7 @@
           showPhotoPreview(currentPhotoData);
         }
         const stats = getInstructorStats(nid);
-        toast(`این مربی قبلاً ثبت شده: ${stats.active} دوره فعال | ${stats.ended} دوره تمامشده`);
+        toast(`این مربی قبلاً ثبت شده: ${stats.active} دوره فعال | ${stats.ended} دوره تمام شده`);
       }
     }
 
@@ -2302,8 +2313,8 @@
           <div><span class="notes-label-blink">یادداشت :</span> <span class="${r.notes ? 'notes-text-yellow' : ''}">${escapeHtml(r.notes) || '—'}</span></div>
           <div>🔗 <strong>بله:</strong> ${r.bale ? `<a href="${escapeHtml(r.bale)}" target="_blank" style="color:var(--primary)">لینک بله</a>` : '—'}</div>
           <div style="margin-top:8px">
-            <span style="color:var(--success)">● دورههای فعال این مربی: ${stats.active}</span><br>
-            <span style="color:var(--muted)">● دورههای تمامشده: ${stats.ended}</span>
+            <span style="color:var(--success)">● دوره های فعال این مربی: ${stats.active}</span><br>
+            <span style="color:var(--muted)">● دوره های تمام شده: ${stats.ended}</span>
           </div>
           <div style="margin-top:8px">${statusBadge(st)}</div>
           ${exportSelfHtml}
@@ -2410,7 +2421,7 @@
       const headers = ['نام دوره','کد دوره','نام','فامیل','کد ملی','شماره تماس','شروع دوره','تعداد کارآموز','پایان دوره','تعداد قبولی','روز مانده','ساعات','روزهای کلاس','وضعیت','یادداشت'];
       const rows = records.map(r => {
         const st = getStatus(r);
-        const stLabel = st === 'active' ? 'فعال' : st === 'soon' ? 'رو به اتمام' : st === 'ended' ? 'تمامشده' : '';
+        const stLabel = st === 'active' ? 'فعال' : st === 'soon' ? 'رو به اتمام' : st === 'ended' ? 'تمام شده' : '';
         const left = daysUntil(r.endDate);
         return [
           r.course, r.courseCode || '', r.name, r.family, r.nationalId, r.phone || '',
@@ -2695,7 +2706,7 @@
 
       records.forEach(r => {
         const st = getStatus(r);
-        const stLabel = st === 'active' ? 'فعال' : st === 'soon' ? 'رو به اتمام' : 'تمامشده';
+        const stLabel = st === 'active' ? 'فعال' : st === 'soon' ? 'رو به اتمام' : 'تمام شده';
         const stClass = st === 'active' ? 'active' : st === 'soon' ? 'soon' : 'ended';
         const photo = r.photo
           ? `<img class="photo" src="${r.photo}" alt="">`
@@ -2963,7 +2974,7 @@
         <h4 style="color:var(--primary);margin:14px 0 8px">۱. معرفی سامانه</h4>
         <p style="color:var(--muted);margin-bottom:8px">
           سامانه «مدیریت مربیان مرکز ۸» یک برنامه وب سبک است که روی مرورگر موبایل یا رایانه اجرا میشود
-          و برای مرکز فنی و حرفهای شهید سیدابراهیم رئیسی (زندان وکیلآباد مشهد) طراحی شده است.
+          و برای مرکز فنی و حرفه ای شهید سیدابراهیم رئیسی (زندان وکیل آباد مشهد) طراحی شده است.
         </p>
         <p style="color:var(--muted);margin-bottom:8px">
           نیازی به سرور یا اینترنت دائمی برای کار روزمره نیست؛ تمام اطلاعات در حافظه محلی همان دستگاه
@@ -2975,10 +2986,10 @@
         </p>
 
         <h4 style="color:var(--primary);margin:14px 0 8px">۲. صفحات اصلی برنامه</h4>
-        <p style="color:var(--muted);margin-bottom:6px">• <strong>داشبورد:</strong> آمار دورههای فعال / رو به اتمام / کل، کارتهای چهار مسئول، لیست نزدیکترین پایانها و بنر هشدار.</p>
-        <p style="color:var(--muted);margin-bottom:6px">• <strong>لیست:</strong> جستجو بر اساس نام یا کد ملی و فیلتر وضعیت (فعال، رو به اتمام، تمامشده).</p>
+        <p style="color:var(--muted);margin-bottom:6px">• <strong>داشبورد:</strong> آمار دوره های فعال / رو به اتمام / کل، کارتهای چهار مسئول، لیست نزدیکترین پایانها و بنر هشدار.</p>
+        <p style="color:var(--muted);margin-bottom:6px">• <strong>لیست:</strong> جستجو بر اساس نام یا کد ملی و فیلتر وضعیت (فعال، رو به اتمام، تمام شده).</p>
         <p style="color:var(--muted);margin-bottom:6px">• <strong>ثبت:</strong> فرم ثبت مربی جدید یا دوره جدید؛ امکان انتخاب مربی قبلی برای پر شدن خودکار مشخصات.</p>
-        <p style="color:var(--muted);margin-bottom:10px">• <strong>ابزار:</strong> خروجی اکسل نقشمحور، خروجی انتخابی + بله، گزارش HTML با عکس، نوتیفیکیشن، پشتیبانگیری و بازیابی، درباره و همین راهنما.</p>
+        <p style="color:var(--muted);margin-bottom:10px">• <strong>ابزار:</strong> خروجی اکسل نقش محوری، خروجی انتخابی + بله، گزارش HTML با عکس، نوتیفیکیشن، پشتیبانگیری و بازیابی، درباره و همین راهنما.</p>
 
         <h4 style="color:var(--primary);margin:14px 0 8px">۳. مسئولان مرکز (کارتهای رنگی)</h4>
         <p style="color:var(--muted);margin-bottom:6px">چهار نقش: رئیس مرکز، معاون مرکز، مسئول آزمون، مسئول آموزش.</p>
@@ -2988,7 +2999,7 @@
 
         <h4 style="color:var(--primary);margin:14px 0 8px">۴. ثبت و ویرایش مربی و دوره</h4>
         <p style="color:var(--muted);margin-bottom:6px">فیلدهای مهم: عنوان دوره، نام، فامیل، کد ملی، تماس، تاریخ شروع و پایان شمسی، ساعات، روزهای کلاس (شنبه تا چهارشنبه)، لینک بله، عکس، یادداشت، رمز.</p>
-        <p style="color:var(--muted);margin-bottom:6px">تاریخها به صورت ۱۴۰۳/۰۷/۱۵ وارد میشوند. برنامه تداخل تاریخ دورههای فعال همان مربی را هشدار میدهد.</p>
+        <p style="color:var(--muted);margin-bottom:6px">تاریخها به صورت ۱۴۰۳/۰۷/۱۵ وارد میشوند. برنامه تداخل تاریخ دوره های فعال همان مربی را هشدار میدهد.</p>
         <p style="color:var(--muted);margin-bottom:6px">عکس از گالری یا دوربین گرفته میشود و قبل از ذخیره کوچک میگردد تا حافظه پر نشود.</p>
         <p style="color:var(--muted);margin-bottom:10px">ویرایش و حذف فقط پس از وارد کردن رمز معتبر و بررسی سطح دسترسی انجام میشود.</p>
 
@@ -2999,7 +3010,7 @@
         <p style="color:var(--muted);margin-bottom:6px">• وارد کردن رمز رئیس مرکز = دسترسی کامل به تمام بخشها.</p>
         <p style="color:var(--muted);margin-bottom:6px">• <strong>رئیس:</strong> همه عملیات شامل ویرایش همه نقشها و بازیابی پشتیبان.</p>
         <p style="color:var(--muted);margin-bottom:6px">• <strong>معاون:</strong> ویرایش مربیان و کارشناسان؛ نمیتواند مشخصات رئیس را تغییر دهد؛ میتواند پشتیبان بگیرد و بازیابی کند.</p>
-        <p style="color:var(--muted);margin-bottom:6px">• <strong>کارشناس آزمون/آموزش:</strong> ثبت مربی جدید؛ بدون ویرایش/حذف مربی؛ پشتیبان و ارسال به بله دارد ولی بازیابی ندارد؛ به خروجی اکسل نقشمحور دسترسی ندارد.</p>
+        <p style="color:var(--muted);margin-bottom:6px">• <strong>کارشناس آزمون/آموزش:</strong> ثبت مربی جدید؛ بدون ویرایش/حذف مربی؛ پشتیبان و ارسال به بله دارد ولی بازیابی ندارد؛ به خروجی اکسل نقش محوری دسترسی ندارد.</p>
         <p style="color:var(--muted);margin-bottom:10px">• <strong>مربی:</strong> فقط ویرایش اطلاعات خودش؛ خروجی اکسل فقط از داده خودش؛ بدون دسترسی به منوی پشتیبانگیری.</p>
 
         <h4 style="color:var(--primary);margin:14px 0 8px">۶. لاگ (تاریخچه) تغییرات</h4>
@@ -3048,8 +3059,8 @@
         <p style="color:var(--muted);margin-bottom:10px">• اگر بعد از بهروزرسانی برنامه تغییرات را ندیدید، کش و Service Worker سایت را پاک کنید.</p>
 
         <div style="margin-top:18px;padding-top:12px;border-top:1px solid var(--border);font-size:0.8rem;color:var(--muted);text-align:center">
-          مرکز فنی و حرفهای شماره ۸ — شهید سیدابراهیم رئیسی — زندان وکیلآباد مشهد<br>
-          نسخه ۲.۲ • اصلاح سطح دسترسی و رمز
+          مرکز فنی و حرفه ای شماره ۸ — شهید سیدابراهیم رئیسی — زندان وکیل آباد مشهد<br>
+          نسخه ۲.۳ • اصلاح نگارش و مستندات
         </div>
       `;
       document.getElementById('helpModal').classList.add('show');
