@@ -27,12 +27,47 @@
     
     .header {
       background: linear-gradient(135deg, var(--primary-dark), #1e3a8a);
-      padding: 16px 16px 20px;
+      padding: 12px 16px 16px;
       position: sticky; top: 0; z-index: 50;
       box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
-    .header h1 { font-size: 1.25rem; font-weight: 700; }
-    .header p { font-size: 0.8rem; opacity: 0.85; margin-top: 2px; }
+    .header h1 { font-size: 1.15rem; font-weight: 700; }
+    .header p { font-size: 0.75rem; opacity: 0.85; margin-top: 2px; }
+    .header-clock-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 10px;
+      gap: 12px;
+    }
+    .header-clock-box, .header-date-box {
+      text-align: center;
+      min-width: 42%;
+    }
+    .header-clock-label {
+      color: #fb923c; /* پرتقالی */
+      font-size: 0.8rem;
+      font-weight: 800;
+      margin-bottom: 2px;
+    }
+    .header-clock-value {
+      color: #fdba74;
+      font-size: 1.15rem;
+      font-weight: 700;
+      direction: ltr;
+      font-variant-numeric: tabular-nums;
+    }
+    .header-date-label {
+      color: #f9a8d4; /* صورتی */
+      font-size: 0.8rem;
+      font-weight: 800;
+      margin-bottom: 2px;
+    }
+    .header-date-value {
+      color: #fbcfe8;
+      font-size: 1rem;
+      font-weight: 700;
+    }
     
     .page { display: none; padding: 16px; }
     .page.active { display: block; }
@@ -322,6 +357,16 @@
 </head>
 <body>
   <div class="header">
+    <div class="header-clock-row">
+      <div class="header-date-box">
+        <div class="header-date-label">تاریخ شمسی</div>
+        <div class="header-date-value" id="headerShamsiDate">—</div>
+      </div>
+      <div class="header-clock-box">
+        <div class="header-clock-label">ساعت</div>
+        <div class="header-clock-value" id="headerClock">—</div>
+      </div>
+    </div>
     <h1>مدیریت مربیان مرکز ۸</h1>
     <p>مرکز فنی و حرفهای شهید سیدابراهیم رئیسی — زندان وکیلآباد</p>
   </div>
@@ -399,9 +444,15 @@
         </select>
       </div>
 
-      <div class="form-group">
-        <label>عنوان دوره *</label>
-        <input type="text" id="f-course" placeholder="مثال: جوشکاری، برق صنعتی، خیاطی..." />
+      <div class="form-row">
+        <div class="form-group">
+          <label>نام دوره *</label>
+          <input type="text" id="f-course" placeholder="مثال: جوشکاری، برق صنعتی..." />
+        </div>
+        <div class="form-group">
+          <label>کد دوره</label>
+          <input type="text" id="f-course-code" placeholder="کد دوره" />
+        </div>
       </div>
 
       <div class="form-row">
@@ -428,12 +479,23 @@
 
       <div class="form-row">
         <div class="form-group">
-          <label>تاریخ شروع (شمسی) *</label>
+          <label>شروع دوره *</label>
           <input type="text" id="f-start" placeholder="۱۴۰۳/۰۷/۱۵" dir="ltr" style="text-align:center" />
         </div>
         <div class="form-group">
-          <label>تاریخ پایان (شمسی) *</label>
+          <label>تعداد کارآموز ثبتشده</label>
+          <input type="number" id="f-trainee-count" placeholder="تعداد" inputmode="numeric" min="0" />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>پایان دوره *</label>
           <input type="text" id="f-end" placeholder="۱۴۰۳/۱۰/۲۰" dir="ltr" style="text-align:center" />
+        </div>
+        <div class="form-group">
+          <label>تعداد قبولی ثبت این دوره</label>
+          <input type="number" id="f-pass-count" placeholder="تعداد قبولی" inputmode="numeric" min="0" />
         </div>
       </div>
 
@@ -552,7 +614,7 @@
         <strong style="color:var(--text)">شماره تماس:</strong>
         <a href="tel:09303068494" style="color:var(--primary);direction:ltr;display:inline-block">۰۹۳۰۳۰۶۸۴۹۴</a>
         <br><br>
-        نسخه ۲.۰ — خروجی نقشمحور + پشتیبان خودکار
+        نسخه ۲.۱ — فیلدهای دوره + ساعت و تاریخ + پاکسازی نشست
       </p>
       <button type="button" class="btn btn-secondary" style="margin-top:12px" onclick="openHelpGuide()">
         ❓ راهنمای جامع برنامه
@@ -1419,9 +1481,10 @@
       // بستن مودال
       document.getElementById('detailModal').classList.remove('show');
 
-      // پاک کردن متغیرهای موقت
+      // پاک کردن متغیرهای موقت و نشست رمز
       currentStaffKey = null;
       staffPhotoData = null;
+      clearAuthSession();
 
       // برگرداندن دکمههای پیشفرض مودال جزئیات مربی
       // (این کار خیلی مهم است تا در دفعات بعدی که جزئیات مربی باز میشود،
@@ -1694,7 +1757,12 @@
       setTimeout(() => t.classList.remove('show'), 2500);
     }
 
+    /**
+     * تغییر صفحه + پاک کردن نشست رمز هنگام خروج از منو
+     * تا رمز قبلی در حافظه نماند و برای ورود بعدی آماده باشد
+     */
     function showPage(name) {
+      clearAuthSession();
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
       document.getElementById('page-' + name).classList.add('active');
       document.querySelectorAll('.nav-btn').forEach(b => {
@@ -1703,6 +1771,13 @@
       if (name === 'dashboard') renderDashboard();
       if (name === 'list') renderList();
       if (name === 'add') populateExistingSelect();
+    }
+
+    /**
+     * پاک کردن وضعیت ورود (رمز/نقش) از حافظه موقت
+     */
+    function clearAuthSession() {
+      currentAuth = null;
     }
 
     let currentFilter = 'all';
@@ -1858,7 +1933,7 @@
     function resetForm() {
       document.getElementById('editId').value = '';
       document.getElementById('formTitle').textContent = 'ثبت مربی و دوره جدید';
-      ['f-course','f-name','f-family','f-national','f-phone','f-start','f-end','f-hours','f-notes','f-bale'].forEach(id => {
+      ['f-course','f-course-code','f-name','f-family','f-national','f-phone','f-start','f-end','f-trainee-count','f-pass-count','f-hours','f-notes','f-bale'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
       });
@@ -1966,12 +2041,15 @@
      */
     function saveRecord() {
       const course = document.getElementById('f-course').value.trim();
+      const courseCode = (document.getElementById('f-course-code') || {}).value.trim() || '';
       const name = document.getElementById('f-name').value.trim();
       const family = document.getElementById('f-family').value.trim();
       const nationalId = document.getElementById('f-national').value.trim();
       const phone = document.getElementById('f-phone').value.trim();
       const startDate = document.getElementById('f-start').value.trim();
       const endDate = document.getElementById('f-end').value.trim();
+      const traineeCount = (document.getElementById('f-trainee-count') || {}).value.trim() || '';
+      const passCount = (document.getElementById('f-pass-count') || {}).value.trim() || '';
       const hours = document.getElementById('f-hours').value.trim();
       const notes = document.getElementById('f-notes').value.trim();
       const bale = document.getElementById('f-bale').value.trim();
@@ -2044,7 +2122,8 @@
           const old = records[idx];
           records[idx] = {
             ...old,
-            course, name, family, nationalId, phone, startDate, endDate, hours, notes, bale, days,
+            course, courseCode, name, family, nationalId, phone, startDate, endDate,
+            traineeCount, passCount, hours, notes, bale, days,
             photo: currentPhotoData,
             updatedAt: new Date().toISOString()
           };
@@ -2073,7 +2152,8 @@
         const newId = generateId();
         records.push({
           id: newId,
-          course, name, family, nationalId, phone, startDate, endDate, hours, notes, bale, days,
+          course, courseCode, name, family, nationalId, phone, startDate, endDate,
+          traineeCount, passCount, hours, notes, bale, days,
           photo: currentPhotoData,
           password: passwordToSave || getDefaultPassword(phone),
           changeLog: [{
@@ -2166,11 +2246,14 @@
       document.getElementById('detailBody').innerHTML = `
         ${photoPart}
         <div class="item-meta" style="font-size:0.95rem;line-height:1.9">
-          <div>📚 <strong>دوره:</strong> ${escapeHtml(r.course)}</div>
+          <div>📚 <strong>نام دوره:</strong> ${escapeHtml(r.course)}</div>
+          <div>🏷️ <strong>کد دوره:</strong> ${escapeHtml(r.courseCode) || '—'}</div>
           <div>🆔 <strong>کد ملی:</strong> ${r.nationalId}</div>
           <div>📞 <strong>تماس:</strong> ${r.phone || '—'}</div>
-          <div>📅 <strong>شروع:</strong> ${r.startDate}</div>
-          <div>📅 <strong>پایان:</strong> ${r.endDate} <span style="color:var(--warning)">(${formatDaysLeft(daysUntil(r.endDate))})</span></div>
+          <div>📅 <strong>شروع دوره:</strong> ${r.startDate}</div>
+          <div>👥 <strong>تعداد کارآموز ثبتشده:</strong> ${r.traineeCount !== undefined && r.traineeCount !== '' ? r.traineeCount : '—'}</div>
+          <div>📅 <strong>پایان دوره:</strong> ${r.endDate} <span style="color:var(--warning)">(${formatDaysLeft(daysUntil(r.endDate))})</span></div>
+          <div>✅ <strong>تعداد قبولی ثبت این دوره:</strong> ${r.passCount !== undefined && r.passCount !== '' ? r.passCount : '—'}</div>
           <div>⏱️ <strong>ساعات:</strong> ${r.hours || '—'}</div>
           <div style="margin:6px 0">📆 <strong>روزهای کلاس:</strong><br>${daysBadgesHtml(r.days)}</div>
           <div><span class="notes-label-blink">یادداشت :</span> <span class="${r.notes ? 'notes-text-yellow' : ''}">${escapeHtml(r.notes) || '—'}</span></div>
@@ -2190,7 +2273,7 @@
     function closeDetail() {
       document.getElementById('detailModal').classList.remove('show');
       currentDetailId = null;
-      // بازگرداندن دکمههای پیشفرض مودال (در صورت تغییر توسط خروجی انتخابی)
+      clearAuthSession(); // با خروج از منو، نشست رمز پاک میشود
       const modalBtns = document.querySelector('#detailModal .btn-row');
       if (modalBtns) {
         modalBtns.innerHTML = `
@@ -2219,12 +2302,18 @@
         document.getElementById('editId').value = r.id;
         document.getElementById('formTitle').textContent = 'ویرایش مربی / دوره';
         document.getElementById('f-course').value = r.course || '';
+        const cc = document.getElementById('f-course-code');
+        if (cc) cc.value = r.courseCode || '';
         document.getElementById('f-name').value = r.name || '';
         document.getElementById('f-family').value = r.family || '';
         document.getElementById('f-national').value = r.nationalId || '';
         document.getElementById('f-phone').value = r.phone || '';
         document.getElementById('f-start').value = r.startDate || '';
         document.getElementById('f-end').value = r.endDate || '';
+        const tc = document.getElementById('f-trainee-count');
+        if (tc) tc.value = r.traineeCount || '';
+        const pc = document.getElementById('f-pass-count');
+        if (pc) pc.value = r.passCount || '';
         document.getElementById('f-hours').value = r.hours || '';
         document.getElementById('f-notes').value = r.notes || '';
         document.getElementById('f-bale').value = r.bale || '';
@@ -2275,14 +2364,15 @@
      * ساخت محتوای CSV از آرایه رکوردها
      */
     function buildCsvFromRecords(records) {
-      const headers = ['عنوان دوره','نام','فامیل','کد ملی','شماره تماس','تاریخ شروع','تاریخ پایان','روز مانده','ساعات','روزهای کلاس','وضعیت','یادداشت'];
+      const headers = ['نام دوره','کد دوره','نام','فامیل','کد ملی','شماره تماس','شروع دوره','تعداد کارآموز','پایان دوره','تعداد قبولی','روز مانده','ساعات','روزهای کلاس','وضعیت','یادداشت'];
       const rows = records.map(r => {
         const st = getStatus(r);
         const stLabel = st === 'active' ? 'فعال' : st === 'soon' ? 'رو به اتمام' : st === 'ended' ? 'تمامشده' : '';
         const left = daysUntil(r.endDate);
         return [
-          r.course, r.name, r.family, r.nationalId, r.phone || '',
-          r.startDate, r.endDate, left !== null ? left : '',
+          r.course, r.courseCode || '', r.name, r.family, r.nationalId, r.phone || '',
+          r.startDate, r.traineeCount || '', r.endDate, r.passCount || '',
+          left !== null ? left : '',
           r.hours || '', formatDays(r.days), stLabel, r.notes || ''
         ].map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',');
       });
@@ -2789,6 +2879,24 @@
       });
     }
 
+    // ==================== ساعت و تاریخ شمسی هدر ====================
+    /**
+     * بهروزرسانی ساعت (سمت راست، پرتقالی) و تاریخ شمسی (سمت چپ، صورتی)
+     */
+    function updateHeaderClock() {
+      const clockEl = document.getElementById('headerClock');
+      const dateEl = document.getElementById('headerShamsiDate');
+      if (!clockEl || !dateEl) return;
+      const now = new Date();
+      clockEl.textContent = now.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      dateEl.textContent = now.toLocaleDateString('fa-IR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    }
+
+    function startHeaderClock() {
+      updateHeaderClock();
+      setInterval(updateHeaderClock, 1000);
+    }
+
     // ==================== راهنمای جامع داخلی ====================
     /**
      * باز کردن مودال راهنمای جامع برنامه
@@ -2898,7 +3006,7 @@
 
         <div style="margin-top:18px;padding-top:12px;border-top:1px solid var(--border);font-size:0.8rem;color:var(--muted);text-align:center">
           مرکز فنی و حرفهای شماره ۸ — شهید سیدابراهیم رئیسی — زندان وکیلآباد مشهد<br>
-          نسخه ۲.۰ • راهنمای داخلی جامع همراه برنامه
+          نسخه ۲.۱ • فیلدهای دوره و ساعت هدر
         </div>
       `;
       document.getElementById('helpModal').classList.add('show');
@@ -2906,6 +3014,7 @@
 
     function closeHelpGuide() {
       document.getElementById('helpModal').classList.remove('show');
+      clearAuthSession();
     }
 
     // ==================== Init ====================
@@ -2916,6 +3025,7 @@
     }
 
     renderDashboard();
+    startHeaderClock();
     startAutoBackupTimer();
     updateAutoBackupStatusUI();
 
