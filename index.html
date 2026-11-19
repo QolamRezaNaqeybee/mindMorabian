@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="theme-color" content="#1e40af" />
-  <meta name="description" content="مدیریت مربیان و دوره های مرکز فنی و حرفه ای شماره ۸ شهید سیدابراهیم رئیسی" />
+  <meta name="description" content="مدیریت مربیان و دورههای مرکز فنی و حرفهای شماره ۸ شهید سیدابراهیم رئیسی" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="icon-192.png" type="image/png" />
@@ -113,6 +113,37 @@
       font-size: 0.75rem;
       margin-bottom: 4px;
     }
+
+    /* اخطار دسترسی — پسزمینه قرمز، متن زرد چشمکزن */
+    @keyframes blink-yellow-warn {
+      0%, 100% { color: #facc15; opacity: 1; text-shadow: 0 0 8px rgba(250, 204, 21, 0.8); }
+      50% { color: #fef08a; opacity: 0.75; text-shadow: 0 0 14px rgba(254, 240, 138, 1); }
+    }
+    .access-deny-box {
+      background: #7f1d1d;
+      border: 2px solid #ef4444;
+      border-radius: 14px;
+      padding: 22px 16px;
+      text-align: center;
+    }
+    .access-deny-text {
+      animation: blink-yellow-warn 1s ease-in-out infinite;
+      font-weight: 800;
+      font-size: 1rem;
+      line-height: 1.8;
+    }
+
+    /* ستارههای صورتی/قرمز چشمکزن برای پوشاندن رمز پیشفرض در راهنما */
+    @keyframes blink-star-pink {
+      0%, 100% { color: #ec4899; }
+      50% { color: #ef4444; }
+    }
+    @keyframes blink-star-red {
+      0%, 100% { color: #ef4444; }
+      50% { color: #ec4899; }
+    }
+    .star-pink { animation: blink-star-pink 0.9s infinite; font-weight: 900; }
+    .star-red { animation: blink-star-red 0.9s infinite; font-weight: 900; }
     
     /* Days of week */
     .days-row {
@@ -460,15 +491,17 @@
   <div class="page" id="page-tools">
     <div class="card">
       <h3 style="margin-bottom:12px">خروجی اکسل</h3>
-      <p style="font-size:0.9rem;color:var(--muted);margin-bottom:14px">فایل CSV از همه مربیان (عکسها داخل اکسل نمیآیند).</p>
-      <button class="btn btn-success" onclick="exportExcel()">⬇ دانلود خروجی کامل اکسل</button>
+      <p style="font-size:0.9rem;color:var(--muted);margin-bottom:14px">
+        مربی: فقط اطلاعات خودش. رئیس و معاون: انتخاب مربیان یا همه.
+        کارشناسان به این بخش دسترسی ندارند.
+      </p>
+      <button class="btn btn-success" onclick="handleExcelExportClick()">⬇ دانلود خروجی بصورت فایل اکسل</button>
     </div>
 
     <div class="card" style="margin-top:12px">
       <h3 style="margin-bottom:12px">خروجی انتخابی + ارسال به بله</h3>
       <p style="font-size:0.9rem;color:var(--muted);margin-bottom:14px">
         مخصوص <strong>رئیس و معاون مرکز</strong>: انتخاب چند مربی، دانلود اکسل و باز کردن لینک بله مسئولان برای ارسال فایل.
-        کارشناسان به این بخش دسترسی ندارند.
       </p>
       <button class="btn btn-primary" onclick="openSelectiveExport()">📋 انتخاب مربیان و ارسال به بله</button>
     </div>
@@ -485,12 +518,26 @@
       <button class="btn btn-primary" id="notifBtn" onclick="requestNotification()">فعالسازی نوتیفیکیشن</button>
     </div>
 
+    <!-- پشتیبانگیری: مخصوص رئیس، معاون و کارشناسان (مربی دسترسی ندارد) -->
     <div class="card" style="margin-top:12px">
-      <h3 style="margin-bottom:12px">پشتیبانگیری</h3>
-      <button class="btn btn-secondary" style="margin-bottom:8px" onclick="exportBackup()">دانلود پشتیبان کامل (JSON)</button>
-      <label class="btn btn-secondary" style="display:block;text-align:center;cursor:pointer">
-        بازیابی از فایل پشتیبان
-        <input type="file" accept=".json" style="display:none" onchange="importBackup(event)" />
+      <h3 style="margin-bottom:12px">پشتیبانگیری و بازیابی</h3>
+      <p style="font-size:0.85rem;color:var(--muted);margin-bottom:12px;line-height:1.7">
+        برنامه هر ۷۵ ثانیه بهصورت خودکار از دادهها پشتیبان میگیرد (حداکثر ۳ نسخه در حافظه مرورگر).
+        دانلود دستی، ارسال به بله رئیس/معاون و بازیابی فقط طبق سطح دسترسی انجام میشود.
+      </p>
+      <div id="autoBackupStatus" style="font-size:0.8rem;color:var(--muted);margin-bottom:10px"></div>
+      <button class="btn btn-secondary" style="margin-bottom:8px;width:100%" onclick="handleManualBackupClick()">
+        ⬇ دانلود پشتیبان کامل (JSON)
+      </button>
+      <button class="btn btn-primary" style="margin-bottom:8px;width:100%" onclick="handleSendBackupToBale()">
+        📤 دانلود پشتیبان + ارسال به بله رئیس/معاون
+      </button>
+      <button class="btn btn-secondary" style="margin-bottom:8px;width:100%" onclick="showAutoBackupsList()">
+        📦 مشاهده و دانلود پشتیبانهای خودکار (۳ نسخه اخیر)
+      </button>
+      <label class="btn btn-danger" style="display:block;text-align:center;cursor:pointer;width:100%" id="restoreBackupLabel">
+        ↺ بازیابی از فایل پشتیبان (فقط رئیس و معاون)
+        <input type="file" accept=".json" style="display:none" onchange="handleImportBackup(event)" />
       </label>
     </div>
 
@@ -505,7 +552,7 @@
         <strong style="color:var(--text)">شماره تماس:</strong>
         <a href="tel:09303068494" style="color:var(--primary);direction:ltr;display:inline-block">۰۹۳۰۳۰۶۸۴۹۴</a>
         <br><br>
-        نسخه ۱.۹ — خروجی اکسل انتخابی و ارسال به بله
+        نسخه ۲.۰ — خروجی نقشمحور + پشتیبان خودکار
       </p>
       <button type="button" class="btn btn-secondary" style="margin-top:12px" onclick="openHelpGuide()">
         ❓ راهنمای جامع برنامه
@@ -958,6 +1005,133 @@
         records[idx].changeLog = records[idx].changeLog.slice(0, 50);
       }
       saveRecords(records);
+    }
+
+    // ==================== پشتیبان خودکار (هر ۷۵ ثانیه، حداکثر ۳ نسخه) ====================
+    /**
+     * کلید ذخیرهسازی پشتیبانهای چرخشی در localStorage
+     * هر آیتم: { at: ISO, label: 'YYYY-MM-DD_HH-MM-SS', payload: object }
+     */
+    const AUTO_BACKUP_KEY = 'morabian_auto_backups_v1';
+    const AUTO_BACKUP_INTERVAL_MS = 75 * 1000; // ۷۵ ثانیه
+    const AUTO_BACKUP_MAX = 3;
+
+    /**
+     * ساخت برچسب نام فایل از تاریخ میلادی و ساعت
+     * مثال: 2026-11-19_14-30-05
+     */
+    function makeBackupLabel(dateObj) {
+      const d = dateObj || new Date();
+      const pad = n => String(n).padStart(2, '0');
+      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+        '_' + pad(d.getHours()) + '-' + pad(d.getMinutes()) + '-' + pad(d.getSeconds());
+    }
+
+    /**
+     * خواندن لیست پشتیبانهای خودکار (جدیدترین اول)
+     */
+    function getAutoBackups() {
+      try {
+        return JSON.parse(localStorage.getItem(AUTO_BACKUP_KEY) || '[]');
+      } catch { return []; }
+    }
+
+    function saveAutoBackups(arr) {
+      localStorage.setItem(AUTO_BACKUP_KEY, JSON.stringify(arr));
+    }
+
+    /**
+     * ساخت آبجکت کامل پشتیبان از تمام دادههای برنامه
+     */
+    function buildFullBackupPayload() {
+      return {
+        version: 2,
+        exportedAt: new Date().toISOString(),
+        records: getRecords(),
+        staff: getStaff(),
+        authSettings: getAuthSettings()
+      };
+    }
+
+    /**
+     * ذخیره یک نسخه جدید در چرخه ۳تایی (قدیمیترین حذف میشود)
+     */
+    function runAutoBackup() {
+      try {
+        const payload = buildFullBackupPayload();
+        const label = makeBackupLabel(new Date());
+        let list = getAutoBackups();
+        list.unshift({ at: new Date().toISOString(), label: label, payload: payload });
+        if (list.length > AUTO_BACKUP_MAX) list = list.slice(0, AUTO_BACKUP_MAX);
+        saveAutoBackups(list);
+        updateAutoBackupStatusUI();
+      } catch (err) {
+        console.warn('Auto backup failed', err);
+      }
+    }
+
+    function updateAutoBackupStatusUI() {
+      const el = document.getElementById('autoBackupStatus');
+      if (!el) return;
+      const list = getAutoBackups();
+      if (list.length === 0) {
+        el.textContent = 'هنوز پشتیبان خودکاری گرفته نشده است.';
+        return;
+      }
+      el.innerHTML = 'آخرین پشتیبان خودکار: <strong style="color:var(--success)">' +
+        escapeHtml(list[0].label) + '</strong> — تعداد نسخهها: ' + list.length + ' از ' + AUTO_BACKUP_MAX;
+    }
+
+    /**
+     * شروع زمانبند پشتیبان خودکار
+     */
+    function startAutoBackupTimer() {
+      runAutoBackup(); // یکبار بلافاصله
+      setInterval(runAutoBackup, AUTO_BACKUP_INTERVAL_MS);
+    }
+
+    /**
+     * دانلود یک payload بهصورت فایل JSON
+     */
+    function downloadBackupPayload(payload, label) {
+      const json = JSON.stringify(payload, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'morabian-backup-' + (label || makeBackupLabel(new Date())) + '.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    /**
+     * دانلود پشتیبان خودکار بر اساس اندیس لیست (۰ = جدیدترین)
+     */
+    function downloadAutoBackupByIndex(idx) {
+      const list = getAutoBackups();
+      if (!list[idx]) {
+        toast('این پشتیبان یافت نشد');
+        return;
+      }
+      downloadBackupPayload(list[idx].payload, list[idx].label);
+      toast('پشتیبان ' + list[idx].label + ' دانلود شد');
+    }
+
+    /**
+     * نمایش اخطار دسترسی قرمز با متن زرد چشمکزن
+     */
+    function showAccessDenied(message) {
+      document.getElementById('detailTitle').textContent = 'عدم دسترسی';
+      document.getElementById('detailBody').innerHTML = `
+        <div class="access-deny-box">
+          <div style="font-size:2rem;margin-bottom:10px">⚠️</div>
+          <div class="access-deny-text">${escapeHtml(message || 'دسترسی فقط مخصوص ریاست و معاون و مربیان محترم میباشد .')}</div>
+        </div>`;
+      const modalBtns = document.querySelector('#detailModal .btn-row');
+      if (modalBtns) {
+        modalBtns.innerHTML = `<button class="btn btn-secondary" onclick="closeDetail()">بستن</button>`;
+      }
+      document.getElementById('detailModal').classList.add('show');
     }
 
     /**
@@ -2272,37 +2446,95 @@
       }
     }
 
-    function exportExcel() {
+    /**
+     * کلیک روی «دانلود خروجی بصورت فایل اکسل»
+     * پس از ورود با رمز:
+     *   - مربی → فقط اطلاعات خودش
+     *   - رئیس/معاون → پنجره انتخاب مربیان یا همه
+     *   - کارشناس → اخطار قرمز با متن زرد چشمکزن
+     */
+    function handleExcelExportClick() {
+      requestPassword(function(auth) {
+        const role = getCurrentRole();
+        if (role === 'exam' || role === 'edu') {
+          showAccessDenied('دسترسی فقط مخصوص ریاست و معاون و مربیان محترم میباشد .');
+          return;
+        }
+        if (role === 'instructor') {
+          // پیدا کردن کد ملی مربی واردشده
+          const rec = getRecords().find(r => r.id === currentAuth.id);
+          if (!rec) {
+            toast('اطلاعات این مربی یافت نشد');
+            return;
+          }
+          downloadInstructorExcel(rec.nationalId, false);
+          return;
+        }
+        if (role === 'boss' || role === 'deputy') {
+          // نمایش انتخاب مربیان (بدون بخش بله — فقط اکسل)
+          showExcelSelectModal();
+          return;
+        }
+        showAccessDenied('دسترسی فقط مخصوص ریاست و معاون و مربیان محترم میباشد .');
+      }, 'برای دریافت خروجی اکسل، رمز خود را وارد کنید');
+    }
+
+    /**
+     * مودال انتخاب مربیان برای رئیس/معاون (فقط دانلود اکسل)
+     */
+    function showExcelSelectModal() {
       const records = getRecords();
-      if (records.length === 0) {
-        toast('هیچ دادهای برای خروجی وجود ندارد');
+      const byNational = {};
+      records.forEach(r => {
+        if (!byNational[r.nationalId]) byNational[r.nationalId] = r;
+      });
+      const instructors = Object.values(byNational);
+      let instructorChecks = instructors.length === 0
+        ? '<p style="color:var(--muted)">هنوز مربی ثبت نشده</p>'
+        : instructors.map(r => `
+            <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:0.85rem">
+              <input type="checkbox" class="excel-sel-inst" value="${escapeHtml(r.nationalId)}" style="width:18px;height:18px" />
+              ${escapeHtml(r.name)} ${escapeHtml(r.family)} — ${escapeHtml(r.nationalId)}
+            </label>
+          `).join('');
+
+      document.getElementById('detailTitle').textContent = 'انتخاب مربیان برای خروجی اکسل';
+      document.getElementById('detailBody').innerHTML = `
+        <div style="font-size:0.9rem">
+          <p style="color:var(--muted);margin-bottom:12px">مربیان مورد نظر را انتخاب کنید یا همه را برگزینید.</p>
+          <div style="max-height:220px;overflow-y:auto;margin-bottom:14px;padding:8px;background:#0f172a;border-radius:8px">
+            <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:0.85rem;color:var(--primary)">
+              <input type="checkbox" onchange="document.querySelectorAll('.excel-sel-inst').forEach(c=>c.checked=this.checked)" style="width:18px;height:18px" />
+              انتخاب همه
+            </label>
+            ${instructorChecks}
+          </div>
+          <button type="button" class="btn btn-success" style="width:100%" onclick="runExcelSelectDownload()">
+            ⬇ دانلود خروجی بصورت فایل اکسل
+          </button>
+        </div>`;
+      const modalBtns = document.querySelector('#detailModal .btn-row');
+      if (modalBtns) {
+        modalBtns.innerHTML = `<button class="btn btn-secondary" onclick="closeDetail()">بستن</button>`;
+      }
+      document.getElementById('detailModal').classList.add('show');
+    }
+
+    function runExcelSelectDownload() {
+      const checked = document.querySelectorAll('.excel-sel-inst:checked');
+      if (checked.length === 0) {
+        toast('حداقل یک مربی را انتخاب کنید');
         return;
       }
-      const headers = ['عنوان دوره','نام','فامیل','کد ملی','شماره تماس','تاریخ شروع','تاریخ پایان','روز مانده','ساعات','روزهای کلاس','وضعیت','یادداشت','دارای عکس'];
-      const rows = records.map(r => {
-        const st = getStatus(r);
-        const stLabel = st === 'active' ? 'فعال' : st === 'soon' ? 'رو به اتمام' : st === 'ended' ? 'تمامشده' : '';
-        const left = daysUntil(r.endDate);
-        return [
-          r.course, r.name, r.family, r.nationalId, r.phone || '',
-          r.startDate, r.endDate, left !== null ? left : '',
-          r.hours || '', formatDays(r.days), stLabel, r.notes || '', r.photo ? 'بله' : 'خیر'
-        ].map(cell => {
-          const s = String(cell).replace(/"/g, '""');
-          return `"${s}"`;
-        }).join(',');
-      });
-
-      const bom = '\uFEFF';
-      const csv = bom + headers.join(',') + '\n' + rows.join('\n');
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `morabian-markaz8-${new Date().toISOString().slice(0,10)}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast('فایل اکسل دانلود شد');
+      const nationalIds = Array.from(checked).map(c => c.value);
+      const records = getRecords().filter(r => nationalIds.includes(r.nationalId));
+      if (records.length === 0) {
+        toast('رکوردی یافت نشد');
+        return;
+      }
+      const csv = buildCsvFromRecords(records);
+      downloadCsvFile(csv, 'morabian-excel-' + makeBackupLabel(new Date()) + '.csv');
+      toast('فایل اکسل دانلود شد (' + records.length + ' ردیف)');
     }
 
     function exportHtmlReport() {
@@ -2361,36 +2593,141 @@
       toast('گزارش HTML دانلود شد');
     }
 
-    function exportBackup() {
-      const data = JSON.stringify(getRecords(), null, 2);
-      const blob = new Blob([data], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `backup-morabian-${new Date().toISOString().slice(0,10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast('پشتیبان دانلود شد');
+    /**
+     * دانلود دستی پشتیبان — رئیس، معاون، کارشناس
+     * مربی اجازه ندارد
+     */
+    function handleManualBackupClick() {
+      requestPassword(function(auth) {
+        const role = getCurrentRole();
+        if (role === 'instructor') {
+          showAccessDenied('دسترسی پشتیبانگیری برای مربیان فعال نیست.');
+          return;
+        }
+        if (role !== 'boss' && role !== 'deputy' && role !== 'exam' && role !== 'edu') {
+          showAccessDenied('دسترسی مجاز نیست.');
+          return;
+        }
+        const payload = buildFullBackupPayload();
+        downloadBackupPayload(payload, makeBackupLabel(new Date()));
+        toast('پشتیبان کامل دانلود شد');
+      }, 'برای دانلود پشتیبان، رمز رئیس، معاون یا کارشناس را وارد کنید');
     }
 
-    function importBackup(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        try {
-          const data = JSON.parse(reader.result);
-          if (!Array.isArray(data)) throw new Error('فرمت نامعتبر');
-          if (!confirm(`تعداد ${data.length} رکورد جایگزین دادههای فعلی میشود. ادامه؟`)) return;
-          saveRecords(data);
-          toast('بازیابی انجام شد');
-          renderDashboard();
-        } catch {
-          toast('خطا در خواندن فایل');
+    /**
+     * دانلود پشتیبان + باز کردن بله رئیس و معاون (نه کارشناسان بهعنوان گیرنده)
+     */
+    function handleSendBackupToBale() {
+      requestPassword(function(auth) {
+        const role = getCurrentRole();
+        if (role === 'instructor') {
+          showAccessDenied('دسترسی پشتیبانگیری برای مربیان فعال نیست.');
+          return;
         }
-      };
-      reader.readAsText(file);
+        if (role !== 'boss' && role !== 'deputy' && role !== 'exam' && role !== 'edu') {
+          showAccessDenied('دسترسی مجاز نیست.');
+          return;
+        }
+        const payload = buildFullBackupPayload();
+        downloadBackupPayload(payload, makeBackupLabel(new Date()));
+        toast('پشتیبان دانلود شد');
+
+        const staff = getStaff();
+        const links = [];
+        if (staff.boss && staff.boss.bale) links.push({ title: 'رئیس مرکز', url: staff.boss.bale.trim() });
+        if (staff.deputy && staff.deputy.bale) links.push({ title: 'معاون مرکز', url: staff.deputy.bale.trim() });
+        if (links.length === 0) {
+          toast('لینک بله رئیس یا معاون ثبت نشده است');
+          return;
+        }
+        let delay = 500;
+        links.forEach(l => {
+          setTimeout(() => { try { window.open(l.url, '_blank'); } catch (e) {} }, delay);
+          delay += 400;
+        });
+        toast('صفحه بله رئیس/معاون باز میشود — فایل را ارسال کنید');
+      }, 'برای ارسال پشتیبان به بله، رمز خود را وارد کنید');
+    }
+
+    /**
+     * نمایش لیست ۳ پشتیبان خودکار برای دانلود
+     */
+    function showAutoBackupsList() {
+      requestPassword(function(auth) {
+        const role = getCurrentRole();
+        if (role === 'instructor') {
+          showAccessDenied('دسترسی پشتیبانگیری برای مربیان فعال نیست.');
+          return;
+        }
+        const list = getAutoBackups();
+        let html;
+        if (list.length === 0) {
+          html = '<p style="color:var(--muted)">هنوز پشتیبان خودکاری ذخیره نشده است. چند لحظه صبر کنید.</p>';
+        } else {
+          html = list.map((b, i) => `
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;padding:10px;background:#0f172a;border-radius:8px">
+              <div style="font-size:0.85rem">
+                <strong>${i + 1}.</strong> ${escapeHtml(b.label)}
+              </div>
+              <button type="button" class="btn btn-success btn-sm" onclick="downloadAutoBackupByIndex(${i})">دانلود</button>
+            </div>
+          `).join('');
+        }
+        document.getElementById('detailTitle').textContent = 'پشتیبانهای خودکار';
+        document.getElementById('detailBody').innerHTML = html;
+        const modalBtns = document.querySelector('#detailModal .btn-row');
+        if (modalBtns) {
+          modalBtns.innerHTML = `<button class="btn btn-secondary" onclick="closeDetail()">بستن</button>`;
+        }
+        document.getElementById('detailModal').classList.add('show');
+      }, 'برای مشاهده پشتیبانهای خودکار، رمز خود را وارد کنید');
+    }
+
+    /**
+     * بازیابی از فایل — فقط رئیس و معاون
+     * فرمت جدید: { records, staff, authSettings } یا آرایه قدیمی فقط records
+     */
+    function handleImportBackup(e) {
+      const file = e.target.files[0];
       e.target.value = '';
+      if (!file) return;
+
+      requestPassword(function(auth) {
+        const role = getCurrentRole();
+        if (role !== 'boss' && role !== 'deputy') {
+          showAccessDenied('بازیابی اطلاعات فقط توسط ریاست یا معاونت مرکز امکانپذیر است.');
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const data = JSON.parse(reader.result);
+            let records, staff, authSettings;
+            if (Array.isArray(data)) {
+              records = data;
+            } else if (data && Array.isArray(data.records)) {
+              records = data.records;
+              staff = data.staff;
+              authSettings = data.authSettings;
+            } else {
+              throw new Error('فرمت نامعتبر');
+            }
+            if (!confirm('دادههای فعلی با محتوای این فایل جایگزین میشوند. ادامه میدهید؟')) return;
+            saveRecords(records);
+            if (staff) saveStaff(staff);
+            if (authSettings) saveAuthSettings(authSettings);
+            toast('بازیابی با موفقیت انجام شد');
+            renderDashboard();
+            renderList();
+            renderStaff();
+            runAutoBackup();
+          } catch (err) {
+            toast('خطا در خواندن فایل پشتیبان');
+            console.error(err);
+          }
+        };
+        reader.readAsText(file);
+      }, 'برای بازیابی اطلاعات، رمز رئیس یا معاون را وارد کنید');
     }
 
     // ==================== Notifications ====================
@@ -2458,86 +2795,110 @@
      * محتوای این راهنما همیشه همراه برنامه است و با توسعه سامانه بهروز میشود.
      */
     function openHelpGuide() {
+      /**
+       * راهنمای جامع داخلی برنامه
+       * نکته امنیتی: متن مربوط به رمز پیشفرض با ستارههای صورتی/قرمز چشمکزن پوشانده شده
+       * و عمداً در راهنما توضیح داده نمیشود.
+       */
       const body = document.getElementById('helpBody');
+      const stars = '<span class="star-pink">★</span><span class="star-red">★</span><span class="star-pink">★</span><span class="star-red">★</span><span class="star-pink">★</span><span class="star-red">★</span><span class="star-pink">★</span>';
       body.innerHTML = `
         <div style="margin-bottom:16px;padding:12px;background:#0f172a;border-radius:10px;border-right:3px solid var(--primary)">
-          <strong style="color:var(--primary)">ایده، نظریه، مجری و طراح:</strong> غلامرضا نقیبی<br>
-          <strong>تماس:</strong> <a href="tel:09303068494" style="color:var(--primary);direction:ltr">۰۹۳۰۳۰۶۸۴۹۴</a>
+          <strong style="color:var(--primary)">ایده، نظریه، مجری و طراح برنامه:</strong> غلامرضا نقیبی<br>
+          <strong>شماره تماس:</strong> <a href="tel:09303068494" style="color:var(--primary);direction:ltr">۰۹۳۰۳۰۶۸۴۹۴</a><br>
+          <span style="font-size:0.8rem;color:var(--muted)">در صورت بروز مشکل با طراح تماس بگیرید.</span>
         </div>
 
         <h4 style="color:var(--primary);margin:14px 0 8px">۱. معرفی سامانه</h4>
+        <p style="color:var(--muted);margin-bottom:8px">
+          سامانه «مدیریت مربیان مرکز ۸» یک برنامه وب سبک است که روی مرورگر موبایل یا رایانه اجرا میشود
+          و برای مرکز فنی و حرفهای شهید سیدابراهیم رئیسی (زندان وکیلآباد مشهد) طراحی شده است.
+        </p>
+        <p style="color:var(--muted);margin-bottom:8px">
+          نیازی به سرور یا اینترنت دائمی برای کار روزمره نیست؛ تمام اطلاعات در حافظه محلی همان دستگاه
+          (localStorage مرورگر) ذخیره میشود. به همین دلیل تهیه پشتیبان منظم بسیار مهم است.
+        </p>
         <p style="color:var(--muted);margin-bottom:10px">
-          سامانه مدیریت مربیان مرکز ۸ یک وباپلیکیشن سبک است که بدون سرور، اطلاعات مربیان و دورهها را
-          در حافظه مرورگر نگهداری میکند. هدف آن نظم در ثبت اطلاعات، هشدار پایان دوره و حفظ سابقه تغییرات
-          با سطح دسترسی مشخص برای هر نقش است.
+          امکانات اصلی: ثبت مربی و دوره، پیگیری تاریخ پایان، هشدار، مدیریت چهار نقش مسئولان مرکز،
+          سطح دسترسی با رمز، لاگ تغییرات، خروجی اکسل، ارسال به بله، پشتیبان خودکار و بازیابی.
         </p>
 
-        <h4 style="color:var(--primary);margin:14px 0 8px">۲. صفحات اصلی</h4>
-        <p style="color:var(--muted);margin-bottom:6px">• <strong>داشبورد:</strong> آمار، کارت مسئولان، نزدیکترین پایانها</p>
-        <p style="color:var(--muted);margin-bottom:6px">• <strong>لیست:</strong> جستجو و فیلتر تمام مربیان و دورهها</p>
-        <p style="color:var(--muted);margin-bottom:6px">• <strong>ثبت:</strong> فرم ثبت یا ویرایش مربی و دوره</p>
-        <p style="color:var(--muted);margin-bottom:10px">• <strong>ابزار:</strong> خروجی اکسل، گزارش HTML، پشتیبان، نوتیفیکیشن، درباره و راهنما</p>
+        <h4 style="color:var(--primary);margin:14px 0 8px">۲. صفحات اصلی برنامه</h4>
+        <p style="color:var(--muted);margin-bottom:6px">• <strong>داشبورد:</strong> آمار دورههای فعال / رو به اتمام / کل، کارتهای چهار مسئول، لیست نزدیکترین پایانها و بنر هشدار.</p>
+        <p style="color:var(--muted);margin-bottom:6px">• <strong>لیست:</strong> جستجو بر اساس نام یا کد ملی و فیلتر وضعیت (فعال، رو به اتمام، تمامشده).</p>
+        <p style="color:var(--muted);margin-bottom:6px">• <strong>ثبت:</strong> فرم ثبت مربی جدید یا دوره جدید؛ امکان انتخاب مربی قبلی برای پر شدن خودکار مشخصات.</p>
+        <p style="color:var(--muted);margin-bottom:10px">• <strong>ابزار:</strong> خروجی اکسل نقشمحور، خروجی انتخابی + بله، گزارش HTML با عکس، نوتیفیکیشن، پشتیبانگیری و بازیابی، درباره و همین راهنما.</p>
 
-        <h4 style="color:var(--primary);margin:14px 0 8px">۳. مسئولان مرکز</h4>
-        <p style="color:var(--muted);margin-bottom:10px">
-          چهار کارت رنگی در داشبورد: رئیس مرکز، معاون، مسئول آزمون، مسئول آموزش.
-          با لمس هر کارت و وارد کردن رمز معتبر، فرم ویرایش آن نقش باز میشود.
-        </p>
+        <h4 style="color:var(--primary);margin:14px 0 8px">۳. مسئولان مرکز (کارتهای رنگی)</h4>
+        <p style="color:var(--muted);margin-bottom:6px">چهار نقش: رئیس مرکز، معاون مرکز، مسئول آزمون، مسئول آموزش.</p>
+        <p style="color:var(--muted);margin-bottom:6px">با لمس هر کارت، ابتدا رمز خواسته میشود؛ سپس در صورت داشتن مجوز، فرم ویرایش باز میشود.</p>
+        <p style="color:var(--muted);margin-bottom:6px">رئیس میتواند همه را ویرایش کند. معاون همه را غیر از رئیس. کارشناسان حق ویرایش مسئولان را ندارند.</p>
+        <p style="color:var(--muted);margin-bottom:10px">رئیس و معاون میتوانند یادآوری (با امکان نوتیفیکیشن) و یادداشت داشته باشند. رئیس تا ۵ یادآوری و معاون ۱ مورد.</p>
 
-        <h4 style="color:var(--primary);margin:14px 0 8px">۴. ثبت و ویرایش مربی</h4>
-        <p style="color:var(--muted);margin-bottom:10px">
-          فیلدها شامل عنوان دوره، نام، فامیل، کد ملی، تماس، تاریخ شروع و پایان شمسی،
-          ساعات، روزهای کلاس، لینک بله، عکس، یادداشت و رمز عبور است.
-          برای ویرایش یا حذف، ابتدا رمز درخواست میشود.
-        </p>
+        <h4 style="color:var(--primary);margin:14px 0 8px">۴. ثبت و ویرایش مربی و دوره</h4>
+        <p style="color:var(--muted);margin-bottom:6px">فیلدهای مهم: عنوان دوره، نام، فامیل، کد ملی، تماس، تاریخ شروع و پایان شمسی، ساعات، روزهای کلاس (شنبه تا چهارشنبه)، لینک بله، عکس، یادداشت، رمز.</p>
+        <p style="color:var(--muted);margin-bottom:6px">تاریخها به صورت ۱۴۰۳/۰۷/۱۵ وارد میشوند. برنامه تداخل تاریخ دورههای فعال همان مربی را هشدار میدهد.</p>
+        <p style="color:var(--muted);margin-bottom:6px">عکس از گالری یا دوربین گرفته میشود و قبل از ذخیره کوچک میگردد تا حافظه پر نشود.</p>
+        <p style="color:var(--muted);margin-bottom:10px">ویرایش و حذف فقط پس از وارد کردن رمز معتبر و بررسی سطح دسترسی انجام میشود.</p>
 
         <h4 style="color:var(--primary);margin:14px 0 8px">۵. سیستم رمز و سطح دسترسی</h4>
-        <p style="color:var(--muted);margin-bottom:6px">
-          • رمز پیشفرض هر نفر = <span style="color:#ef4444;font-weight:700">هفت رقم آخر موبایل</span> (رنگ قرمز)
-        </p>
-        <p style="color:var(--muted);margin-bottom:6px">• با دکمه «تغییر رمز» میتوان رمز دلخواه (۴ تا ۸ کاراکتر) گذاشت.</p>
-        <p style="color:var(--muted);margin-bottom:6px">• رمز فقط هنگام ویرایش یا حذف خواسته میشود؛ مشاهده برای همه آزاد است.</p>
-        <p style="color:var(--muted);margin-bottom:6px">• اگر رمز <strong>رئیس مرکز</strong> وارد شود → دسترسی کامل به همه چیز.</p>
-        <p style="color:var(--muted);margin-bottom:6px">• <strong>رئیس:</strong> همه کارها</p>
-        <p style="color:var(--muted);margin-bottom:6px">• <strong>معاون:</strong> ویرایش مربیان و کارشناسان؛ نمیتواند رئیس را ویرایش کند</p>
-        <p style="color:var(--muted);margin-bottom:6px">• <strong>کارشناس آزمون/آموزش:</strong> فقط ثبت مربی جدید؛ ویرایش و حذف ندارد</p>
-        <p style="color:var(--muted);margin-bottom:10px">• <strong>خود مربی:</strong> فقط ویرایش اطلاعات خودش</p>
+        <p style="color:var(--muted);margin-bottom:6px">• رمز پیشفرض هر نفر در فرم با رنگ قرمز نمایش داده میشود: ${stars}</p>
+        <p style="color:var(--muted);margin-bottom:6px">• با دکمه «تغییر رمز» میتوان رمز دلخواه بین ۴ تا ۸ کاراکتر تعیین کرد.</p>
+        <p style="color:var(--muted);margin-bottom:6px">• مشاهده اطلاعات برای همه آزاد است؛ رمز فقط هنگام ویرایش، حذف، خروجی حساس یا پشتیبان خواسته میشود.</p>
+        <p style="color:var(--muted);margin-bottom:6px">• وارد کردن رمز رئیس مرکز = دسترسی کامل به تمام بخشها.</p>
+        <p style="color:var(--muted);margin-bottom:6px">• <strong>رئیس:</strong> همه عملیات شامل ویرایش همه نقشها و بازیابی پشتیبان.</p>
+        <p style="color:var(--muted);margin-bottom:6px">• <strong>معاون:</strong> ویرایش مربیان و کارشناسان؛ نمیتواند مشخصات رئیس را تغییر دهد؛ میتواند پشتیبان بگیرد و بازیابی کند.</p>
+        <p style="color:var(--muted);margin-bottom:6px">• <strong>کارشناس آزمون/آموزش:</strong> ثبت مربی جدید؛ بدون ویرایش/حذف مربی؛ پشتیبان و ارسال به بله دارد ولی بازیابی ندارد؛ به خروجی اکسل نقشمحور دسترسی ندارد.</p>
+        <p style="color:var(--muted);margin-bottom:10px">• <strong>مربی:</strong> فقط ویرایش اطلاعات خودش؛ خروجی اکسل فقط از داده خودش؛ بدون دسترسی به منوی پشتیبانگیری.</p>
 
-        <h4 style="color:var(--primary);margin:14px 0 8px">۶. لاگ تغییرات</h4>
+        <h4 style="color:var(--primary);margin:14px 0 8px">۶. لاگ (تاریخچه) تغییرات</h4>
         <p style="color:var(--muted);margin-bottom:10px">
-          هر تغییر روی اطلاعات مربی در تاریخچه همان مربی ثبت میشود (زمان، توسط چه کسی، نوع عمل).
-          این تاریخچه در پایین صفحه جزئیات مربی قابل مشاهده است.
+          هر ثبت اولیه یا ویرایش مربی در تاریخچه همان فرد ذخیره میشود: زمان، نام فرد واردشده با رمز، نوع عمل و جزئیات.
+          حداکثر حدود ۵۰ مورد اخیر نگه داشته میشود و در پایین صفحه جزئیات مربی قابل مشاهده است.
         </p>
 
         <h4 style="color:var(--primary);margin:14px 0 8px">۷. یادداشت چشمکزن</h4>
         <p style="color:var(--muted);margin-bottom:10px">
-          عنوان «یادداشت :» با رنگ سبز چشمکزن نمایش داده میشود.
-          وقتی متن نوشته شود، رنگ نوشته زرد میگردد.
+          برچسب «یادداشت :» با رنگ سبز و حالت چشمکزن است. وقتی داخل کادر متن نوشته شود، رنگ متن زرد میشود
+          تا در یک نگاه مشخص باشد کدام رکورد یادداشت دارد.
         </p>
 
-        <h4 style="color:var(--primary);margin:14px 0 8px">۸. ابزارها و خروجی اکسل</h4>
-        <p style="color:var(--muted);margin-bottom:6px">• خروجی اکسل کامل همه مربیان (CSV بدون عکس)</p>
-        <p style="color:var(--muted);margin-bottom:6px">• در جزئیات هر مربی: دانلود اکسل همان مربی و ارسال به بله مسئولان (با انتخاب)</p>
-        <p style="color:var(--muted);margin-bottom:6px">• خروجی انتخابی چند مربی + ارسال به بله (فقط رئیس و معاون)</p>
-        <p style="color:var(--muted);margin-bottom:6px">• گزارش HTML با عکس (مناسب چاپ/PDF)</p>
-        <p style="color:var(--muted);margin-bottom:6px">• پشتیبان کامل JSON و بازیابی از فایل</p>
-        <p style="color:var(--muted);margin-bottom:10px">• فعالسازی نوتیفیکیشن پایان دوره و یادآوری مسئولان</p>
+        <h4 style="color:var(--primary);margin:14px 0 8px">۸. خروجی اکسل و ارسال به بله</h4>
+        <p style="color:var(--muted);margin-bottom:6px">• دکمه «دانلود خروجی بصورت فایل اکسل» در صفحه ابزار:</p>
+        <p style="color:var(--muted);margin-bottom:6px">&nbsp;&nbsp;– مربی: فقط فایل خودش</p>
+        <p style="color:var(--muted);margin-bottom:6px">&nbsp;&nbsp;– رئیس/معاون: انتخاب یک یا چند مربی یا همه</p>
+        <p style="color:var(--muted);margin-bottom:6px">&nbsp;&nbsp;– کارشناس: پنجره قرمز اخطار با متن زرد چشمکزن</p>
+        <p style="color:var(--muted);margin-bottom:6px">• در جزئیات هر مربی: دانلود اکسل همان نفر و در صورت وجود لینک بله مسئولان، انتخاب گیرنده و باز شدن صفحه بله.</p>
+        <p style="color:var(--muted);margin-bottom:6px">• «خروجی انتخابی + ارسال به بله» فقط برای رئیس و معاون.</p>
+        <p style="color:var(--muted);margin-bottom:10px">• توجه: مرورگر نمیتواند فایل را مستقیم داخل چت بله بگذارد؛ فایل دانلود میشود و لینک بله باز میگردد تا شما پیوست کنید.</p>
 
-        <h4 style="color:var(--primary);margin:14px 0 8px">۹. مدت اعتبار ورود</h4>
+        <h4 style="color:var(--primary);margin:14px 0 8px">۹. پشتیبانگیری خودکار و بازیابی</h4>
+        <p style="color:var(--muted);margin-bottom:6px">• هر ۷۵ ثانیه یک پشتیبان کامل از دادهها داخل حافظه مرورگر ذخیره میشود.</p>
+        <p style="color:var(--muted);margin-bottom:6px">• حداکثر ۳ نسخه نگه داشته میشود؛ نسخه چهارم جای قدیمیترین را میگیرد (چرخشی).</p>
+        <p style="color:var(--muted);margin-bottom:6px">• نام هر نسخه شامل تاریخ و ساعت میلادی است (مثال: 2026-11-19_14-30-05).</p>
+        <p style="color:var(--muted);margin-bottom:6px">• دانلود دستی پشتیبان و ارسال به بله رئیس/معاون: برای رئیس، معاون و کارشناسان.</p>
+        <p style="color:var(--muted);margin-bottom:6px">• بازیابی از فایل: فقط رئیس و معاون.</p>
+        <p style="color:var(--muted);margin-bottom:10px">• مربیان به منوی پشتیبانگیری دسترسی ندارند.</p>
+
+        <h4 style="color:var(--primary);margin:14px 0 8px">۱۰. مدت اعتبار ورود با رمز</h4>
         <p style="color:var(--muted);margin-bottom:10px">
-          رئیس مرکز در پنجره ویرایش خودش میتواند مدت اعتبار ورود را برای سه گروه تنظیم کند
-          (رئیس و معاون / کارشناسان / مربیان) بر حسب دقیقه.
+          رئیس مرکز در فرم ویرایش خودش سه عدد (به دقیقه) تنظیم میکند: اعتبار برای رئیس و معاون،
+          برای کارشناسان، و برای مربیان. پس از انقضا، برای کار حساس باید دوباره رمز وارد شود.
         </p>
 
-        <h4 style="color:var(--primary);margin:14px 0 8px">۱۰. نکات مهم نگهداری</h4>
-        <p style="color:var(--muted);margin-bottom:6px">• دادهها فقط در مرورگر همین دستگاه ذخیره میشوند.</p>
-        <p style="color:var(--muted);margin-bottom:6px">• پاک کردن کش سایت میتواند اطلاعات را پاک کند؛ حتماً پشتیبان بگیرید.</p>
-        <p style="color:var(--muted);margin-bottom:6px">• برنامه قابل نصب روی صفحه اصلی موبایل است (PWA).</p>
-        <p style="color:var(--muted);margin-bottom:10px">• تاریخها شمسی هستند و عکسها قبل از ذخیره فشرده میشوند.</p>
+        <h4 style="color:var(--primary);margin:14px 0 8px">۱۱. نوتیفیکیشن و گزارش HTML</h4>
+        <p style="color:var(--muted);margin-bottom:6px">• با فعالسازی نوتیفیکیشن مرورگر، هشدار پایان دوره و یادآوری مسئولان (در صورت تنظیم) نمایش داده میشود.</p>
+        <p style="color:var(--muted);margin-bottom:10px">• گزارش HTML با عکس برای چاپ یا ذخیره بهصورت PDF از روی مرورگر مناسب است.</p>
+
+        <h4 style="color:var(--primary);margin:14px 0 8px">۱۲. نکات حیاتی نگهداری</h4>
+        <p style="color:var(--muted);margin-bottom:6px">• دادهها فقط روی همین دستگاه و همین مرورگر است. تعویض گوشی یا پاک کردن دادههای سایت = از دست رفتن اطلاعات، مگر پشتیبان داشته باشید.</p>
+        <p style="color:var(--muted);margin-bottom:6px">• حتماً بهطور منظم از بخش ابزار پشتیبان JSON بگیرید و در جای امن (مثلاً بله رئیس) نگه دارید.</p>
+        <p style="color:var(--muted);margin-bottom:6px">• برنامه بهصورت PWA قابل نصب روی صفحه اصلی موبایل است.</p>
+        <p style="color:var(--muted);margin-bottom:10px">• اگر بعد از بهروزرسانی برنامه تغییرات را ندیدید، کش و Service Worker سایت را پاک کنید.</p>
 
         <div style="margin-top:18px;padding-top:12px;border-top:1px solid var(--border);font-size:0.8rem;color:var(--muted);text-align:center">
           مرکز فنی و حرفهای شماره ۸ — شهید سیدابراهیم رئیسی — زندان وکیلآباد مشهد<br>
-          نسخه ۱.۹ • خروجی اکسل و ارسال به بله
+          نسخه ۲.۰ • راهنمای داخلی جامع همراه برنامه
         </div>
       `;
       document.getElementById('helpModal').classList.add('show');
@@ -2555,6 +2916,8 @@
     }
 
     renderDashboard();
+    startAutoBackupTimer();
+    updateAutoBackupStatusUI();
 
     document.getElementById('detailModal').addEventListener('click', (e) => {
       if (e.target.id === 'detailModal') closeDetail();
