@@ -460,8 +460,17 @@
   <div class="page" id="page-tools">
     <div class="card">
       <h3 style="margin-bottom:12px">خروجی اکسل</h3>
-      <p style="font-size:0.9rem;color:var(--muted);margin-bottom:14px">فایل CSV تولید میشود (عکسها داخل اکسل نمیآیند).</p>
-      <button class="btn btn-success" onclick="exportExcel()">⬇ دانلود خروجی اکسل</button>
+      <p style="font-size:0.9rem;color:var(--muted);margin-bottom:14px">فایل CSV از همه مربیان (عکسها داخل اکسل نمیآیند).</p>
+      <button class="btn btn-success" onclick="exportExcel()">⬇ دانلود خروجی کامل اکسل</button>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <h3 style="margin-bottom:12px">خروجی انتخابی + ارسال به بله</h3>
+      <p style="font-size:0.9rem;color:var(--muted);margin-bottom:14px">
+        مخصوص <strong>رئیس و معاون مرکز</strong>: انتخاب چند مربی، دانلود اکسل و باز کردن لینک بله مسئولان برای ارسال فایل.
+        کارشناسان به این بخش دسترسی ندارند.
+      </p>
+      <button class="btn btn-primary" onclick="openSelectiveExport()">📋 انتخاب مربیان و ارسال به بله</button>
     </div>
 
     <div class="card" style="margin-top:12px">
@@ -487,12 +496,20 @@
 
     <div class="card" style="margin-top:12px">
       <h3 style="margin-bottom:8px">درباره</h3>
-      <p style="font-size:0.85rem;color:var(--muted);line-height:1.7">
+      <p style="font-size:0.85rem;color:var(--muted);line-height:1.8">
         مرکز فنی و حرفهای شماره ۸<br>
         شهید سیدابراهیم رئیسی<br>
-        زندان وکیلآباد مشهد<br>
-        نسخه ۱.۷ — سیستم رمز + سطح دسترسی + لاگ تغییرات + یادداشت چشمکزن
+        زندان وکیلآباد مشهد<br><br>
+        <strong style="color:var(--text)">ایده، نظریه، مجری، طراح برنامه:</strong><br>
+        غلامرضا نقیبی<br>
+        <strong style="color:var(--text)">شماره تماس:</strong>
+        <a href="tel:09303068494" style="color:var(--primary);direction:ltr;display:inline-block">۰۹۳۰۳۰۶۸۴۹۴</a>
+        <br><br>
+        نسخه ۱.۹ — خروجی اکسل انتخابی و ارسال به بله
       </p>
+      <button type="button" class="btn btn-secondary" style="margin-top:12px" onclick="openHelpGuide()">
+        ❓ راهنمای جامع برنامه
+      </button>
     </div>
   </div>
 
@@ -523,6 +540,17 @@
         <button class="btn btn-primary btn-sm" onclick="editFromDetail()">ویرایش</button>
         <button class="btn btn-danger btn-sm" onclick="deleteFromDetail()">حذف</button>
         <button class="btn btn-secondary btn-sm" onclick="closeDetail()">بستن</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help Guide Modal — راهنمای جامع داخلی -->
+  <div class="modal-overlay" id="helpModal">
+    <div class="modal" style="max-height:92vh">
+      <h3 style="margin-bottom:12px">❓ راهنمای جامع برنامه</h3>
+      <div id="helpBody" style="font-size:0.9rem;line-height:1.85;color:var(--text)"></div>
+      <div class="btn-row" style="margin-top:16px">
+        <button class="btn btn-secondary" onclick="closeHelpGuide()">بستن</button>
       </div>
     </div>
   </div>
@@ -1911,11 +1939,50 @@
         photoPart = `<img class="detail-photo" src="${r.photo}" alt="" />`;
       }
       const stats = getInstructorStats(r.nationalId);
-      const baleBtn = r.bale
-        ? `<button class="btn btn-success" style="margin-top:12px" onclick="exportInstructorToBale('${r.nationalId}')">📤 دانلود اکسل این مربی + باز کردن بله</button>`
-        : `<div style="margin-top:10px;font-size:0.85rem;color:var(--muted)">لینک بله ثبت نشده</div>`;
-      // لاگ تغییرات فقط برای رئیس و معاون کامل نمایش داده میشود
-      // بقیه هم میتوانند ببینند (طبق درخواست شما همه میتوانند اطلاعات را ببینند)
+
+      // گزینههای ارسال به بله مسئولانی که لینک بله دارند
+      const staff = getStaff();
+      const staffBaleOptions = [];
+      STAFF_ROLES.forEach(role => {
+        const s = staff[role.key];
+        if (s && s.bale && String(s.bale).trim()) {
+          staffBaleOptions.push({ key: role.key, title: role.title, bale: s.bale.trim() });
+        }
+      });
+      let sendToStaffHtml = '';
+      if (staffBaleOptions.length > 0) {
+        sendToStaffHtml = `
+          <div style="margin-top:12px;padding:12px;background:#0f172a;border-radius:10px;border:1px solid var(--border)">
+            <div style="font-size:0.85rem;font-weight:700;margin-bottom:8px">📤 ارسال فایل اکسل به بله مسئولان</div>
+            <p style="font-size:0.75rem;color:var(--muted);margin-bottom:8px">پس از دانلود اکسل، مسئولانی را که لینک بله دارند انتخاب کنید تا صفحه بله آنها باز شود و بتوانید فایل را برایشان بفرستید.</p>
+            ${staffBaleOptions.map(o => `
+              <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:0.85rem">
+                <input type="checkbox" class="detail-bale-target" value="${escapeHtml(o.bale)}" data-title="${escapeHtml(o.title)}" style="width:18px;height:18px" />
+                ${escapeHtml(o.title)}
+              </label>
+            `).join('')}
+            <button type="button" class="btn btn-primary btn-sm" style="margin-top:8px;width:100%"
+              onclick="downloadInstructorExcel('${escapeHtml(r.nationalId)}', true)">
+              ⬇ دانلود اکسل + باز کردن بلههای انتخابشده
+            </button>
+          </div>`;
+      } else {
+        sendToStaffHtml = `
+          <div style="margin-top:10px;font-size:0.8rem;color:var(--muted)">
+            هنوز هیچ مسئولی لینک بله ثبت نکرده است. فقط میتوانید اکسل را دانلود کنید.
+          </div>`;
+      }
+
+      const exportSelfHtml = `
+        <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
+          <button type="button" class="btn btn-success" style="width:100%;margin-bottom:8px"
+            onclick="downloadInstructorExcel('${escapeHtml(r.nationalId)}', false)">
+            ⬇ دانلود اکسل اطلاعات این مربی
+          </button>
+          ${sendToStaffHtml}
+        </div>`;
+
+      // لاگ تغییرات
       const logHtml = `
         <div style="margin-top:18px;border-top:1px solid var(--border);padding-top:14px">
           <h4 style="font-size:0.95rem;margin-bottom:10px">📋 تاریخچه تغییرات</h4>
@@ -1939,7 +2006,7 @@
             <span style="color:var(--muted)">● دورههای تمامشده: ${stats.ended}</span>
           </div>
           <div style="margin-top:8px">${statusBadge(st)}</div>
-          ${baleBtn}
+          ${exportSelfHtml}
           ${logHtml}
         </div>
       `;
@@ -1949,6 +2016,15 @@
     function closeDetail() {
       document.getElementById('detailModal').classList.remove('show');
       currentDetailId = null;
+      // بازگرداندن دکمههای پیشفرض مودال (در صورت تغییر توسط خروجی انتخابی)
+      const modalBtns = document.querySelector('#detailModal .btn-row');
+      if (modalBtns) {
+        modalBtns.innerHTML = `
+          <button class="btn btn-primary btn-sm" onclick="editFromDetail()">ویرایش</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteFromDetail()">حذف</button>
+          <button class="btn btn-secondary btn-sm" onclick="closeDetail()">بستن</button>
+        `;
+      }
     }
 
     /**
@@ -2021,13 +2097,10 @@
     }
 
     // ==================== Export ====================
-    function exportInstructorToBale(nationalId) {
-      const records = getRecords().filter(r => r.nationalId === nationalId);
-      if (records.length === 0) {
-        toast('دورهای برای این مربی یافت نشد');
-        return;
-      }
-      const sample = records[0];
+    /**
+     * ساخت محتوای CSV از آرایه رکوردها
+     */
+    function buildCsvFromRecords(records) {
       const headers = ['عنوان دوره','نام','فامیل','کد ملی','شماره تماس','تاریخ شروع','تاریخ پایان','روز مانده','ساعات','روزهای کلاس','وضعیت','یادداشت'];
       const rows = records.map(r => {
         const st = getStatus(r);
@@ -2037,29 +2110,165 @@
           r.course, r.name, r.family, r.nationalId, r.phone || '',
           r.startDate, r.endDate, left !== null ? left : '',
           r.hours || '', formatDays(r.days), stLabel, r.notes || ''
-        ].map(cell => {
-          const s = String(cell).replace(/"/g, '""');
-          return `"${s}"`;
-        }).join(',');
+        ].map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',');
       });
-      const bom = '\uFEFF';
-      const csv = bom + headers.join(',') + '\n' + rows.join('\n');
+      return '\uFEFF' + headers.join(',') + '\n' + rows.join('\n');
+    }
+
+    /**
+     * دانلود فایل CSV
+     */
+    function downloadCsvFile(csv, filename) {
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `مربی-${sample.name}-${sample.family}-${new Date().toISOString().slice(0,10)}.csv`;
+      a.download = filename;
       a.click();
       URL.revokeObjectURL(url);
+    }
+
+    /**
+     * دانلود اکسل یک مربی (بر اساس کد ملی)
+     * اگر openBale=true باشد، لینکهای بله تیکخورده در مودال جزئیات را باز میکند
+     */
+    function downloadInstructorExcel(nationalId, openBale) {
+      const records = getRecords().filter(r => r.nationalId === nationalId);
+      if (records.length === 0) {
+        toast('دورهای برای این مربی یافت نشد');
+        return;
+      }
+      const sample = records[0];
+      const csv = buildCsvFromRecords(records);
+      downloadCsvFile(csv, `مربی-${sample.name}-${sample.family}-${new Date().toISOString().slice(0,10)}.csv`);
       toast('فایل اکسل این مربی دانلود شد');
 
-      // باز کردن لینک بله
-      if (sample.bale) {
-        setTimeout(() => {
-          window.open(sample.bale, '_blank');
-        }, 600);
-      } else {
-        toast('لینک بله برای این مربی ثبت نشده');
+      if (openBale) {
+        const checked = document.querySelectorAll('.detail-bale-target:checked');
+        if (checked.length === 0) {
+          toast('هیچ گیرندهای انتخاب نشده — فقط فایل دانلود شد');
+          return;
+        }
+        // باز کردن لینکهای بله با فاصله کوتاه تا مرورگر مسدود نکند
+        let delay = 500;
+        checked.forEach(cb => {
+          const link = cb.value;
+          setTimeout(() => {
+            try { window.open(link, '_blank'); } catch (e) {}
+          }, delay);
+          delay += 400;
+        });
+        toast('صفحه بله گیرندگان باز میشود — فایل دانلودشده را برایشان ارسال کنید');
+      }
+    }
+
+    /**
+     * خروجی انتخابی مربیان + ارسال به بله مسئولان (فقط رئیس و معاون)
+     */
+    function openSelectiveExport() {
+      requestPassword(function(auth) {
+        const role = getCurrentRole();
+        if (role !== 'boss' && role !== 'deputy') {
+          toast('فقط رئیس یا معاون مرکز به این بخش دسترسی دارند');
+          return;
+        }
+        showSelectiveExportModal();
+      }, 'برای خروجی انتخابی و ارسال به بله، رمز رئیس یا معاون را وارد کنید');
+    }
+
+    function showSelectiveExportModal() {
+      const records = getRecords();
+      // یکتایی بر اساس کد ملی برای انتخاب مربی
+      const byNational = {};
+      records.forEach(r => {
+        if (!byNational[r.nationalId]) {
+          byNational[r.nationalId] = r;
+        }
+      });
+      const instructors = Object.values(byNational);
+
+      const staff = getStaff();
+      const recipients = [];
+      STAFF_ROLES.forEach(role => {
+        const s = staff[role.key];
+        if (s && s.bale && String(s.bale).trim()) {
+          recipients.push({ key: role.key, title: role.title, bale: s.bale.trim() });
+        }
+      });
+
+      let instructorChecks = instructors.length === 0
+        ? '<p style="color:var(--muted)">هنوز مربی ثبت نشده</p>'
+        : instructors.map(r => `
+            <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:0.85rem">
+              <input type="checkbox" class="sel-inst" value="${escapeHtml(r.nationalId)}" style="width:18px;height:18px" />
+              ${escapeHtml(r.name)} ${escapeHtml(r.family)} — ${escapeHtml(r.nationalId)}
+            </label>
+          `).join('');
+
+      let recipientChecks = recipients.length === 0
+        ? '<p style="color:var(--muted);font-size:0.85rem">هیچ مسئولی لینک بله ندارد</p>'
+        : recipients.map(o => `
+            <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:0.85rem">
+              <input type="checkbox" class="sel-recv" value="${escapeHtml(o.bale)}" style="width:18px;height:18px" />
+              ${escapeHtml(o.title)}
+            </label>
+          `).join('');
+
+      document.getElementById('detailTitle').textContent = 'خروجی انتخابی + ارسال به بله';
+      document.getElementById('detailBody').innerHTML = `
+        <div style="font-size:0.9rem">
+          <p style="color:var(--muted);margin-bottom:12px">مربیان مورد نظر را انتخاب کنید، فایل اکسل دانلود میشود؛ در صورت انتخاب گیرندگان، صفحه بله آنها باز میشود تا فایل را ارسال کنید.</p>
+          <h4 style="margin-bottom:8px">انتخاب مربیان</h4>
+          <div style="max-height:180px;overflow-y:auto;margin-bottom:14px;padding:8px;background:#0f172a;border-radius:8px">
+            <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:0.85rem;color:var(--primary)">
+              <input type="checkbox" id="selAllInst" onchange="document.querySelectorAll('.sel-inst').forEach(c=>c.checked=this.checked)" style="width:18px;height:18px" />
+              انتخاب همه
+            </label>
+            ${instructorChecks}
+          </div>
+          <h4 style="margin-bottom:8px">ارسال به بله (اختیاری)</h4>
+          <div style="margin-bottom:14px;padding:8px;background:#0f172a;border-radius:8px">
+            ${recipientChecks}
+          </div>
+          <button type="button" class="btn btn-success" style="width:100%" onclick="runSelectiveExport()">
+            ⬇ دانلود اکسل انتخابشده + باز کردن بله
+          </button>
+        </div>
+      `;
+      // دکمههای پایین مودال را فقط بستن بگذار
+      const modalBtns = document.querySelector('#detailModal .btn-row');
+      if (modalBtns) {
+        modalBtns.innerHTML = `<button class="btn btn-secondary" onclick="closeDetail()">بستن</button>`;
+      }
+      document.getElementById('detailModal').classList.add('show');
+    }
+
+    function runSelectiveExport() {
+      const checkedInst = document.querySelectorAll('.sel-inst:checked');
+      if (checkedInst.length === 0) {
+        toast('حداقل یک مربی را انتخاب کنید');
+        return;
+      }
+      const nationalIds = Array.from(checkedInst).map(c => c.value);
+      const records = getRecords().filter(r => nationalIds.includes(r.nationalId));
+      if (records.length === 0) {
+        toast('رکوردی یافت نشد');
+        return;
+      }
+      const csv = buildCsvFromRecords(records);
+      downloadCsvFile(csv, `انتخابی-مربیان-${new Date().toISOString().slice(0,10)}.csv`);
+      toast('فایل اکسل دانلود شد (' + records.length + ' ردیف)');
+
+      const recvs = document.querySelectorAll('.sel-recv:checked');
+      if (recvs.length > 0) {
+        let delay = 500;
+        recvs.forEach(cb => {
+          setTimeout(() => {
+            try { window.open(cb.value, '_blank'); } catch (e) {}
+          }, delay);
+          delay += 400;
+        });
+        toast('صفحه بله گیرندگان باز میشود');
       }
     }
 
@@ -2243,6 +2452,101 @@
       });
     }
 
+    // ==================== راهنمای جامع داخلی ====================
+    /**
+     * باز کردن مودال راهنمای جامع برنامه
+     * محتوای این راهنما همیشه همراه برنامه است و با توسعه سامانه بهروز میشود.
+     */
+    function openHelpGuide() {
+      const body = document.getElementById('helpBody');
+      body.innerHTML = `
+        <div style="margin-bottom:16px;padding:12px;background:#0f172a;border-radius:10px;border-right:3px solid var(--primary)">
+          <strong style="color:var(--primary)">ایده، نظریه، مجری و طراح:</strong> غلامرضا نقیبی<br>
+          <strong>تماس:</strong> <a href="tel:09303068494" style="color:var(--primary);direction:ltr">۰۹۳۰۳۰۶۸۴۹۴</a>
+        </div>
+
+        <h4 style="color:var(--primary);margin:14px 0 8px">۱. معرفی سامانه</h4>
+        <p style="color:var(--muted);margin-bottom:10px">
+          سامانه مدیریت مربیان مرکز ۸ یک وباپلیکیشن سبک است که بدون سرور، اطلاعات مربیان و دورهها را
+          در حافظه مرورگر نگهداری میکند. هدف آن نظم در ثبت اطلاعات، هشدار پایان دوره و حفظ سابقه تغییرات
+          با سطح دسترسی مشخص برای هر نقش است.
+        </p>
+
+        <h4 style="color:var(--primary);margin:14px 0 8px">۲. صفحات اصلی</h4>
+        <p style="color:var(--muted);margin-bottom:6px">• <strong>داشبورد:</strong> آمار، کارت مسئولان، نزدیکترین پایانها</p>
+        <p style="color:var(--muted);margin-bottom:6px">• <strong>لیست:</strong> جستجو و فیلتر تمام مربیان و دورهها</p>
+        <p style="color:var(--muted);margin-bottom:6px">• <strong>ثبت:</strong> فرم ثبت یا ویرایش مربی و دوره</p>
+        <p style="color:var(--muted);margin-bottom:10px">• <strong>ابزار:</strong> خروجی اکسل، گزارش HTML، پشتیبان، نوتیفیکیشن، درباره و راهنما</p>
+
+        <h4 style="color:var(--primary);margin:14px 0 8px">۳. مسئولان مرکز</h4>
+        <p style="color:var(--muted);margin-bottom:10px">
+          چهار کارت رنگی در داشبورد: رئیس مرکز، معاون، مسئول آزمون، مسئول آموزش.
+          با لمس هر کارت و وارد کردن رمز معتبر، فرم ویرایش آن نقش باز میشود.
+        </p>
+
+        <h4 style="color:var(--primary);margin:14px 0 8px">۴. ثبت و ویرایش مربی</h4>
+        <p style="color:var(--muted);margin-bottom:10px">
+          فیلدها شامل عنوان دوره، نام، فامیل، کد ملی، تماس، تاریخ شروع و پایان شمسی،
+          ساعات، روزهای کلاس، لینک بله، عکس، یادداشت و رمز عبور است.
+          برای ویرایش یا حذف، ابتدا رمز درخواست میشود.
+        </p>
+
+        <h4 style="color:var(--primary);margin:14px 0 8px">۵. سیستم رمز و سطح دسترسی</h4>
+        <p style="color:var(--muted);margin-bottom:6px">
+          • رمز پیشفرض هر نفر = <span style="color:#ef4444;font-weight:700">هفت رقم آخر موبایل</span> (رنگ قرمز)
+        </p>
+        <p style="color:var(--muted);margin-bottom:6px">• با دکمه «تغییر رمز» میتوان رمز دلخواه (۴ تا ۸ کاراکتر) گذاشت.</p>
+        <p style="color:var(--muted);margin-bottom:6px">• رمز فقط هنگام ویرایش یا حذف خواسته میشود؛ مشاهده برای همه آزاد است.</p>
+        <p style="color:var(--muted);margin-bottom:6px">• اگر رمز <strong>رئیس مرکز</strong> وارد شود → دسترسی کامل به همه چیز.</p>
+        <p style="color:var(--muted);margin-bottom:6px">• <strong>رئیس:</strong> همه کارها</p>
+        <p style="color:var(--muted);margin-bottom:6px">• <strong>معاون:</strong> ویرایش مربیان و کارشناسان؛ نمیتواند رئیس را ویرایش کند</p>
+        <p style="color:var(--muted);margin-bottom:6px">• <strong>کارشناس آزمون/آموزش:</strong> فقط ثبت مربی جدید؛ ویرایش و حذف ندارد</p>
+        <p style="color:var(--muted);margin-bottom:10px">• <strong>خود مربی:</strong> فقط ویرایش اطلاعات خودش</p>
+
+        <h4 style="color:var(--primary);margin:14px 0 8px">۶. لاگ تغییرات</h4>
+        <p style="color:var(--muted);margin-bottom:10px">
+          هر تغییر روی اطلاعات مربی در تاریخچه همان مربی ثبت میشود (زمان، توسط چه کسی، نوع عمل).
+          این تاریخچه در پایین صفحه جزئیات مربی قابل مشاهده است.
+        </p>
+
+        <h4 style="color:var(--primary);margin:14px 0 8px">۷. یادداشت چشمکزن</h4>
+        <p style="color:var(--muted);margin-bottom:10px">
+          عنوان «یادداشت :» با رنگ سبز چشمکزن نمایش داده میشود.
+          وقتی متن نوشته شود، رنگ نوشته زرد میگردد.
+        </p>
+
+        <h4 style="color:var(--primary);margin:14px 0 8px">۸. ابزارها و خروجی اکسل</h4>
+        <p style="color:var(--muted);margin-bottom:6px">• خروجی اکسل کامل همه مربیان (CSV بدون عکس)</p>
+        <p style="color:var(--muted);margin-bottom:6px">• در جزئیات هر مربی: دانلود اکسل همان مربی و ارسال به بله مسئولان (با انتخاب)</p>
+        <p style="color:var(--muted);margin-bottom:6px">• خروجی انتخابی چند مربی + ارسال به بله (فقط رئیس و معاون)</p>
+        <p style="color:var(--muted);margin-bottom:6px">• گزارش HTML با عکس (مناسب چاپ/PDF)</p>
+        <p style="color:var(--muted);margin-bottom:6px">• پشتیبان کامل JSON و بازیابی از فایل</p>
+        <p style="color:var(--muted);margin-bottom:10px">• فعالسازی نوتیفیکیشن پایان دوره و یادآوری مسئولان</p>
+
+        <h4 style="color:var(--primary);margin:14px 0 8px">۹. مدت اعتبار ورود</h4>
+        <p style="color:var(--muted);margin-bottom:10px">
+          رئیس مرکز در پنجره ویرایش خودش میتواند مدت اعتبار ورود را برای سه گروه تنظیم کند
+          (رئیس و معاون / کارشناسان / مربیان) بر حسب دقیقه.
+        </p>
+
+        <h4 style="color:var(--primary);margin:14px 0 8px">۱۰. نکات مهم نگهداری</h4>
+        <p style="color:var(--muted);margin-bottom:6px">• دادهها فقط در مرورگر همین دستگاه ذخیره میشوند.</p>
+        <p style="color:var(--muted);margin-bottom:6px">• پاک کردن کش سایت میتواند اطلاعات را پاک کند؛ حتماً پشتیبان بگیرید.</p>
+        <p style="color:var(--muted);margin-bottom:6px">• برنامه قابل نصب روی صفحه اصلی موبایل است (PWA).</p>
+        <p style="color:var(--muted);margin-bottom:10px">• تاریخها شمسی هستند و عکسها قبل از ذخیره فشرده میشوند.</p>
+
+        <div style="margin-top:18px;padding-top:12px;border-top:1px solid var(--border);font-size:0.8rem;color:var(--muted);text-align:center">
+          مرکز فنی و حرفهای شماره ۸ — شهید سیدابراهیم رئیسی — زندان وکیلآباد مشهد<br>
+          نسخه ۱.۹ • خروجی اکسل و ارسال به بله
+        </div>
+      `;
+      document.getElementById('helpModal').classList.add('show');
+    }
+
+    function closeHelpGuide() {
+      document.getElementById('helpModal').classList.remove('show');
+    }
+
     // ==================== Init ====================
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -2254,6 +2558,9 @@
 
     document.getElementById('detailModal').addEventListener('click', (e) => {
       if (e.target.id === 'detailModal') closeDetail();
+    });
+    document.getElementById('helpModal').addEventListener('click', (e) => {
+      if (e.target.id === 'helpModal') closeHelpGuide();
     });
   </script>
 </body>
