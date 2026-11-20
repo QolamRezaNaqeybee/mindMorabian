@@ -31,8 +31,9 @@
       position: sticky; top: 0; z-index: 50;
       box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
-    .header h1 { font-size: 1.15rem; font-weight: 700; }
-    .header p { font-size: 0.75rem; opacity: 0.85; margin-top: 2px; }
+    .header h1 { font-size: 1.05rem; font-weight: 700; text-align: center; line-height: 1.55; }
+    .header .header-subtitle { font-size: 0.78rem; opacity: 0.9; margin-top: 6px; text-align: center; line-height: 1.6; }
+    .header p.header-subtitle { font-size: 0.78rem; opacity: 0.9; margin-top: 6px; text-align: center; line-height: 1.6; }
     .header-clock-row {
       display: flex;
       justify-content: space-between;
@@ -367,8 +368,8 @@
         <div class="header-clock-value" id="headerClock">—</div>
       </div>
     </div>
-    <h1>مدیریت مربیان مرکز ۸</h1>
-    <p>مرکز فنی و حرفه ای شهید سیدابراهیم رئیسی — زندان وکیل آباد</p>
+    <h1>برنامه مدیریت مربیان فنی و حرفه ای</h1>
+    <p class="header-subtitle">مرکز شماره ۸ شهید سید ابراهیم رئیسی مستقر در زندان وکیل آباد مشهد</p>
   </div>
 
   <!-- Dashboard -->
@@ -617,7 +618,7 @@
         <strong style="color:var(--text)">شماره تماس:</strong>
         <a href="tel:09303068494" style="color:var(--primary);direction:ltr;display:inline-block">۰۹۳۰۳۰۶۸۴۹۴</a>
         <br><br>
-        نسخه ۲.۵.۳ — فهرست فقط دورههای همان مربی در ویرایش
+        نسخه ۲.۶ — ثبت فقط رئیس/آموزش + تیتر هدر
       </p>
       <button type="button" class="btn btn-secondary" style="margin-top:12px" onclick="openHelpGuide()">
         ❓ راهنمای جامع برنامه
@@ -1876,7 +1877,27 @@
       });
       if (name === 'dashboard') renderDashboard();
       if (name === 'list') renderList();
-      if (name === 'add') populateExistingSelect();
+      if (name === 'add') {
+        populateExistingSelect();
+        /**
+         * اگر فرم «ثبت جدید» است (نه ویرایش) و نقش رئیس/آموزش نیست،
+         * برای دیدن فهرست مربیان و امکان ثبت، رمز گرفته میشود.
+         * مربی بعد از ورود فقط دورههای خودش را میبیند نه اسامی دیگران.
+         */
+        const editId = (document.getElementById('editId') || {}).value || '';
+        if (!editId) {
+          const role = getCurrentRole();
+          if (role !== 'boss' && role !== 'edu') {
+            requestPassword(function(auth) {
+              currentAuth = auth;
+              if (auth.type !== 'boss' && auth.type !== 'edu' && auth.type !== 'instructor') {
+                toast('برای ثبت دوره جدید فقط رئیس یا کارشناس آموزش مجازند');
+              }
+              populateExistingSelect();
+            }, 'برای ثبت یا مدیریت دوره، رمز رئیس / کارشناس آموزش (یا رمز مربی فقط برای دیدن دورههای خود) را وارد کنید');
+          }
+        }
+      }
     }
 
     /**
@@ -2158,10 +2179,14 @@
     }
 
     /**
-     * پر کردن فهرست بالای فرم
-     * - ثبت جدید: لیست مربیان (برای پر شدن هویت هنگام ثبت دوره جدید)
-     * - ویرایش: فقط دورههای همان مربی (کد ملی فعلی فرم / رکورد در حال ویرایش)
-     *   تا اسامی مربیان دیگر در پنجره ویرایش دیده نشود
+     * پر کردن فهرست بالای فرم ثبت/ویرایش
+     *
+     * قواعد دسترسی (طبق درخواست کارفرما):
+     * - تعریف/ثبت دوره جدید فقط توسط رئیس مرکز و کارشناس آموزش انجام میشود.
+     * - مربی حق دیدن اسامی مربیان دیگر و حق تعریف دوره جدید ندارد.
+     * - در حالت ویرایش توسط مربی (یا هر نقش): فقط دورههای همان مربی (همان کد ملی) در فهرست میآید.
+     * - در حالت ثبت جدید توسط رئیس/آموزش: فهرست مربیان برای انتخاب هویت هنگام ثبت دوره جدید.
+     * - اگر کاربر مربی باشد یا مجوز ثبت نداشته باشد: فهرست مربیان دیگر نشان داده نمیشود.
      */
     function populateExistingSelect() {
       const sel = document.getElementById('f-existing');
@@ -2169,13 +2194,19 @@
       const records = getRecords();
       const editId = (document.getElementById('editId') || {}).value || '';
       const labelEl = document.querySelector('#existingInstructorBox label');
+      const box = document.getElementById('existingInstructorBox');
+      const role = getCurrentRole();
 
+      // ----- حالت ویرایش: فقط دورههای همین مربی -----
       if (editId) {
         const currentRec = records.find(r => r.id === editId);
-        const nid = currentRec ? normalizeNationalId(currentRec.nationalId) : normalizeNationalId(document.getElementById('f-national').value);
+        const nid = currentRec
+          ? normalizeNationalId(currentRec.nationalId)
+          : normalizeNationalId((document.getElementById('f-national') || {}).value || '');
         if (labelEl) {
-          labelEl.textContent = 'دورههای این مربی (برای دیدن یا جابهجایی بین دورههای خودش)';
+          labelEl.textContent = 'دورههای این مربی (فقط دورههای تعریفشده برای همین نفر)';
         }
+        if (box) box.style.display = '';
         sel.innerHTML = '<option value="">— انتخاب دوره این مربی —</option>';
         const mine = records.filter(r => normalizeNationalId(r.nationalId) === nid);
         mine.sort((a, b) => String(b.startDate || '').localeCompare(String(a.startDate || ''), 'fa'));
@@ -2194,10 +2225,41 @@
         return;
       }
 
-      // ثبت جدید
-      if (labelEl) {
-        labelEl.textContent = 'الف : انتخاب دوره های قبلی یا دیدن دوره های جدید تعریف شده در پورتال';
+      // ----- حالت ثبت جدید -----
+      // فقط رئیس و کارشناس آموزش میتوانند مربیان دیگر را ببینند و دوره تعریف کنند
+      const canRegisterForOthers = (role === 'boss' || role === 'edu');
+
+      if (!canRegisterForOthers) {
+        // مربی / کارشناس آزمون / بدون ورود: فهرست اسامی مربیان نشان داده نشود
+        if (labelEl) {
+          labelEl.textContent = 'ثبت دوره جدید فقط توسط رئیس مرکز یا کارشناس آموزش انجام میشود';
+        }
+        sel.innerHTML = '<option value="">— دسترسی به فهرست مربیان برای این نقش نیست —</option>';
+        // اگر مربی وارد شده، فقط دورههای خودش را برای مشاهده سریع نشان بده
+        if (role === 'instructor' && currentAuth && currentAuth.nationalId) {
+          if (labelEl) {
+            labelEl.textContent = 'دورههای شما (مشاهده) — ثبت دوره جدید برای شما توسط آموزش/رئیس انجام میشود';
+          }
+          const nid = normalizeNationalId(currentAuth.nationalId);
+          const mine = records.filter(r => normalizeNationalId(r.nationalId) === nid);
+          sel.innerHTML = '<option value="">— دورههای شما —</option>';
+          mine.forEach(r => {
+            const opt = document.createElement('option');
+            opt.value = r.id;
+            opt.textContent = (r.course || 'بدون نام') +
+              (r.courseCode ? ' | کد: ' + r.courseCode : '') +
+              ' | ' + (r.startDate || '') + ' تا ' + (r.endDate || '');
+            sel.appendChild(opt);
+          });
+        }
+        return;
       }
+
+      // رئیس یا کارشناس آموزش: فهرست مربیان برای ثبت دوره جدید
+      if (labelEl) {
+        labelEl.textContent = 'الف : انتخاب مربی قبلی برای ثبت دوره جدید (یا مربی جدید در فرم زیر)';
+      }
+      if (box) box.style.display = '';
       const map = {};
       records.forEach(r => {
         const key = normalizeNationalId(r.nationalId) || r.nationalId;
@@ -2205,7 +2267,7 @@
       });
       const current = sel.value;
       sel.innerHTML = '<option value="">— مربی جدید یا انتخاب از لیست —</option>';
-      Object.values(map).sort((a,b) => (a.family + a.name).localeCompare(b.family + b.name, 'fa')).forEach(r => {
+      Object.values(map).sort((a, b) => (a.family + a.name).localeCompare(b.family + b.name, 'fa')).forEach(r => {
         const stats = getInstructorStats(r.nationalId);
         const opt = document.createElement('option');
         opt.value = r.nationalId;
@@ -2262,8 +2324,24 @@
           return;
         }
       } else {
-        // ثبت جدید: کارشناسان هم میتوانند ثبت کنند، پس اگر ورود معتبر نداریم
-        // فقط برای ثبت جدید اجازه میدهیم بدون رمز (طبق درخواست شما)
+        /**
+         * ثبت دوره/مربی جدید:
+         * فقط رئیس مرکز و کارشناس آموزش مجازند.
+         * مربی و کارشناس آزمون حق تعریف دوره جدید ندارند.
+         */
+        if (!isAuthValid() || (getCurrentRole() !== 'boss' && getCurrentRole() !== 'edu')) {
+          toast('ثبت دوره جدید فقط توسط رئیس مرکز یا کارشناس آموزش — ابتدا از ابزار یا همین صفحه با رمز وارد شوید');
+          // درخواست رمز و در صورت موفقیتِ نقش مجاز، دوباره ذخیره
+          requestPassword(function(auth) {
+            if (auth.type !== 'boss' && auth.type !== 'edu') {
+              toast('نقش شما مجاز به ثبت دوره جدید نیست');
+              return;
+            }
+            currentAuth = auth;
+            saveRecord();
+          }, 'برای ثبت دوره جدید، رمز رئیس یا کارشناس آموزش را وارد کنید');
+          return;
+        }
       }
 
       // چک تداخل تاریخ
@@ -3236,7 +3314,7 @@
 
         <div style="margin-top:18px;padding-top:12px;border-top:1px solid var(--border);font-size:0.8rem;color:var(--muted);text-align:center">
           مرکز فنی و حرفه ای شماره ۸ — شهید سیدابراهیم رئیسی — زندان وکیل آباد مشهد<br>
-          نسخه ۲.۵.۳ • دورههای مربی در ویرایش
+          نسخه ۲.۶ • دسترسی ثبت و تیتر
         </div>
       `;
       document.getElementById('helpModal').classList.add('show');
