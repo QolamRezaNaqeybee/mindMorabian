@@ -510,7 +510,7 @@
           <button type="button" class="day-btn on" data-day="sat" onclick="toggleDay(this)">شنبه</button>
           <button type="button" class="day-btn on" data-day="sun" onclick="toggleDay(this)">یکشنبه</button>
           <button type="button" class="day-btn on" data-day="mon" onclick="toggleDay(this)">دوشنبه</button>
-          <button type="button" class="day-btn on" data-day="tue" onclick="toggleDay(this)">سهشنبه</button>
+          <button type="button" class="day-btn on" data-day="tue" onclick="toggleDay(this)">سه شنبه</button>
           <button type="button" class="day-btn on" data-day="wed" onclick="toggleDay(this)">چهارشنبه</button>
         </div>
         <div class="days-legend">
@@ -617,7 +617,7 @@
         <strong style="color:var(--text)">شماره تماس:</strong>
         <a href="tel:09303068494" style="color:var(--primary);direction:ltr;display:inline-block">۰۹۳۰۳۰۶۸۴۹۴</a>
         <br><br>
-        نسخه ۲.۵ — نشست ویرایش، دوره تمامشده، نوتیفیکیشن
+        نسخه ۲.۵.۲ — اصلاح نگارش سه شنبه
       </p>
       <button type="button" class="btn btn-secondary" style="margin-top:12px" onclick="openHelpGuide()">
         ❓ راهنمای جامع برنامه
@@ -857,11 +857,33 @@
     }
 
     /**
+     * یکسانسازی ارقام فارسی/عربی به انگلیسی و حذف فاصله
+     * برای مقایسه مطمئن کد ملی و شماره تماس
+     */
+    function toEnglishDigits(str) {
+      if (str === null || str === undefined) return '';
+      const s = String(str);
+      const map = {
+        '۰':'0','۱':'1','۲':'2','۳':'3','۴':'4','۵':'5','۶':'6','۷':'7','۸':'8','۹':'9',
+        '٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'
+      };
+      return s.replace(/[۰-۹٠-٩]/g, ch => map[ch] || ch);
+    }
+
+    /**
+     * نرمالسازی کد ملی برای مقایسه (رقم انگلیسی، بدون فاصله و خط تیره)
+     */
+    function normalizeNationalId(nid) {
+      return toEnglishDigits(nid).replace(/[\s\-]/g, '').trim();
+    }
+
+    /**
      * ساخت رمز پیشفرض از شماره موبایل (۷ رقم آخر)
+     * ارقام فارسی هم پشتیبانی میشوند
      */
     function getDefaultPassword(phone) {
       if (!phone) return '';
-      const digits = String(phone).replace(/\D/g, '');
+      const digits = toEnglishDigits(phone).replace(/\D/g, '');
       return digits.slice(-7);
     }
 
@@ -887,7 +909,6 @@
 
     /**
      * آیا دوره از نظر تاریخ پایان «تمام شده» است؟
-     * (روز مانده منفی یا وضعیت ended)
      */
     function isCourseEnded(record) {
       if (!record) return false;
@@ -897,27 +918,31 @@
     }
 
     /**
-     * آیا کاربر فعلی اجازه ویرایش این مربی/دوره را دارد؟
-     * قواعد:
-     *   - کارشناس آزمون/آموزش: هرگز ویرایش/حذف ندارند (فقط ثبت دوره جدید)
-     *   - اگر تاریخ پایان گذشته باشد: فقط رئیس مرکز
-     *   - در غیر این صورت: رئیس، معاون، یا خود مربی (بر اساس کد ملی)
+     * آیا این نقش/نشست اجازه ویرایش این رکورد را دارد؟
+     * قواعد طراحی:
+     *   - مربی: ویرایش اطلاعات خودش و دورههایش تا قبل از اتمام دوره (بر اساس کد ملی)
+     *   - رئیس و معاون: دورههای غیرتمامشده
+     *   - دوره تمامشده: فقط رئیس
+     *   - کارشناس: هیچ ویرایشی
+     * @param {object} record رکورد دوره
+     * @param {object} [authOverride] اگر از callback رمز آمده، همان را اولویت بده
      */
-    function canEditInstructor(record) {
-      const role = getCurrentRole();
-      if (!role) return false;
+    function canEditInstructor(record, authOverride) {
+      const auth = authOverride || (isAuthValid() ? currentAuth : null);
+      if (!auth || !auth.type) return false;
+      const role = auth.type;
       if (role === 'exam' || role === 'edu') return false;
 
-      // دوره تمام شده: فقط رئیس
       if (isCourseEnded(record)) {
         return role === 'boss';
       }
 
-      if (role === 'boss') return true;
-      if (role === 'deputy') return true;
-      if (role === 'instructor' && currentAuth && currentAuth.nationalId &&
-          record && record.nationalId && currentAuth.nationalId === record.nationalId) {
-        return true;
+      if (role === 'boss' || role === 'deputy') return true;
+
+      if (role === 'instructor') {
+        const a = normalizeNationalId(auth.nationalId);
+        const b = normalizeNationalId(record && record.nationalId);
+        return !!(a && b && a === b);
       }
       return false;
     }
@@ -1012,16 +1037,16 @@
         // مربیان: بر اساس کد ملی یکتا (چند دوره یک نفر = یک هویت)
         const seenNational = {};
         getRecords().forEach(r => {
-          const nid = r.nationalId || '';
+          const nid = normalizeNationalId(r.nationalId || '');
           if (!nid || seenNational[nid]) return;
           const p = resolvePassword(r);
           if (p && pass === p) {
             seenNational[nid] = true;
             matches.push({
-              key: 'instructor:' + nid,
+              key: 'instructor:' + normalizeNationalId(nid),
               type: 'instructor',
-              id: r.id, // برای سازگاری؛ معیار اصلی nationalId است
-              nationalId: nid,
+              id: r.id,
+              nationalId: normalizeNationalId(nid),
               name: ((r.name || '') + ' ' + (r.family || '')).trim() || nid
             });
           }
@@ -1714,7 +1739,7 @@
     }
 
     // ==================== Days of Week ====================
-    const DAY_LABELS = { sat: 'شنبه', sun: 'یکشنبه', mon: 'دوشنبه', tue: 'سهشنبه', wed: 'چهارشنبه' };
+    const DAY_LABELS = { sat: 'شنبه', sun: 'یکشنبه', mon: 'دوشنبه', tue: 'سه شنبه', wed: 'چهارشنبه' };
     const DAY_KEYS = ['sat', 'sun', 'mon', 'tue', 'wed'];
 
     function toggleDay(btn) {
@@ -2151,11 +2176,11 @@
       // اگر در حال ویرایش هستیم، باید دسترسی داشته باشیم
       if (editId) {
         const existing = records.find(r => r.id === editId);
-        if (existing && !canEditInstructor(existing)) {
-          if (isCourseEnded(existing) && getCurrentRole() !== 'boss') {
+        if (existing && !canEditInstructor(existing, currentAuth)) {
+          if (isCourseEnded(existing)) {
             toast('این دوره به پایان رسیده؛ فقط رئیس مرکز میتواند آن را ویرایش کند');
           } else {
-            toast('شما اجازه ویرایش این مربی را ندارید');
+            toast('شما اجازه ویرایش این مربی را ندارید — دوباره با رمز خود وارد ویرایش شوید');
           }
           return;
         }
@@ -2350,17 +2375,19 @@
       if (!r) return;
 
       requestPassword(function(auth) {
-        // بعد از ورود موفق، سطح دسترسی را چک کن
-        if (!canEditInstructor(r)) {
-          if (isCourseEnded(r) && getCurrentRole() && getCurrentRole() !== 'boss') {
+        // اولویت با همان auth برگشتی از رمز — نه فقط currentAuth
+        if (!canEditInstructor(r, auth)) {
+          if (isCourseEnded(r)) {
             toast('این دوره به پایان رسیده؛ فقط رئیس مرکز میتواند آن را ویرایش کند');
-          } else if (isCourseEnded(r) && !getCurrentRole()) {
-            toast('این دوره به پایان رسیده؛ فقط رئیس مرکز میتواند آن را ویرایش کند');
+          } else if (auth && auth.type === 'instructor') {
+            toast('این دوره متعلق به شما نیست یا کد ملی همخوانی ندارد');
           } else {
             toast('شما اجازه ویرایش این مربی را ندارید');
           }
           return;
         }
+        // اطمینان از ماندن نشست تا ذخیره روی فرم
+        currentAuth = auth;
         closeDetail();
         document.getElementById('editId').value = r.id;
         document.getElementById('formTitle').textContent = 'ویرایش مربی / دوره';
@@ -3130,7 +3157,7 @@
 
         <div style="margin-top:18px;padding-top:12px;border-top:1px solid var(--border);font-size:0.8rem;color:var(--muted);text-align:center">
           مرکز فنی و حرفه ای شماره ۸ — شهید سیدابراهیم رئیسی — زندان وکیل آباد مشهد<br>
-          نسخه ۲.۵ • اصلاح ویرایش و نوتیف
+          نسخه ۲.۵.۲ • سه شنبه
         </div>
       `;
       document.getElementById('helpModal').classList.add('show');
