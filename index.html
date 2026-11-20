@@ -617,7 +617,7 @@
         <strong style="color:var(--text)">شماره تماس:</strong>
         <a href="tel:09303068494" style="color:var(--primary);direction:ltr;display:inline-block">۰۹۳۰۳۰۶۸۴۹۴</a>
         <br><br>
-        نسخه ۲.۵.۲ — اصلاح نگارش سه شنبه
+        نسخه ۲.۵.۳ — فهرست فقط دورههای همان مربی در ویرایش
       </p>
       <button type="button" class="btn btn-secondary" style="margin-top:12px" onclick="openHelpGuide()">
         ❓ راهنمای جامع برنامه
@@ -2082,12 +2082,52 @@
       return { active, ended };
     }
 
+    /**
+     * تغییر انتخاب در فهرست بالای فرم ثبت/ویرایش
+     * - حالت ثبت جدید: مقدار = کد ملی مربی → فقط مشخصات هویتی پر میشود
+     * - حالت ویرایش: مقدار = id دوره → همان دوره این مربی در فرم بارگذاری میشود
+     *   (دیگر اسامی مربیان دیگر در این حالت نشان داده نمیشود)
+     */
     function fillFromExisting() {
       const sel = document.getElementById('f-existing');
       const val = sel.value;
       if (!val) return;
       const records = getRecords();
-      const sample = records.find(r => r.nationalId === val);
+      const editId = (document.getElementById('editId') || {}).value || '';
+
+      if (editId) {
+        // حالت ویرایش: فقط دورههای همین مربی — انتخاب یک دوره دیگر او
+        const course = records.find(r => r.id === val);
+        if (!course) return;
+        document.getElementById('editId').value = course.id;
+        document.getElementById('formTitle').textContent = 'ویرایش مربی / دوره';
+        document.getElementById('f-course').value = course.course || '';
+        const cc = document.getElementById('f-course-code');
+        if (cc) cc.value = course.courseCode || '';
+        document.getElementById('f-name').value = course.name || '';
+        document.getElementById('f-family').value = course.family || '';
+        document.getElementById('f-national').value = course.nationalId || '';
+        document.getElementById('f-phone').value = course.phone || '';
+        document.getElementById('f-start').value = course.startDate || '';
+        document.getElementById('f-end').value = course.endDate || '';
+        const tc = document.getElementById('f-trainee-count');
+        if (tc) tc.value = course.traineeCount || '';
+        const pc = document.getElementById('f-pass-count');
+        if (pc) pc.value = course.passCount || '';
+        document.getElementById('f-hours').value = course.hours || '';
+        document.getElementById('f-notes').value = course.notes || '';
+        document.getElementById('f-bale').value = course.bale || '';
+        updateNotesColor(document.getElementById('f-notes'));
+        updateDefaultPassDisplay();
+        currentPhotoData = course.photo || null;
+        showPhotoPreview(currentPhotoData);
+        setSelectedDays(course.days || { sat:true, sun:true, mon:true, tue:true, wed:true });
+        toast('دوره انتخابشده بارگذاری شد');
+        return;
+      }
+
+      // حالت ثبت جدید: پر کردن مشخصات مربی از روی کد ملی
+      const sample = records.find(r => normalizeNationalId(r.nationalId) === normalizeNationalId(val) || r.nationalId === val);
       if (!sample) return;
       document.getElementById('f-name').value = sample.name || '';
       document.getElementById('f-family').value = sample.family || '';
@@ -2117,15 +2157,51 @@
       }
     }
 
+    /**
+     * پر کردن فهرست بالای فرم
+     * - ثبت جدید: لیست مربیان (برای پر شدن هویت هنگام ثبت دوره جدید)
+     * - ویرایش: فقط دورههای همان مربی (کد ملی فعلی فرم / رکورد در حال ویرایش)
+     *   تا اسامی مربیان دیگر در پنجره ویرایش دیده نشود
+     */
     function populateExistingSelect() {
       const sel = document.getElementById('f-existing');
       if (!sel) return;
       const records = getRecords();
+      const editId = (document.getElementById('editId') || {}).value || '';
+      const labelEl = document.querySelector('#existingInstructorBox label');
+
+      if (editId) {
+        const currentRec = records.find(r => r.id === editId);
+        const nid = currentRec ? normalizeNationalId(currentRec.nationalId) : normalizeNationalId(document.getElementById('f-national').value);
+        if (labelEl) {
+          labelEl.textContent = 'دورههای این مربی (برای دیدن یا جابهجایی بین دورههای خودش)';
+        }
+        sel.innerHTML = '<option value="">— انتخاب دوره این مربی —</option>';
+        const mine = records.filter(r => normalizeNationalId(r.nationalId) === nid);
+        mine.sort((a, b) => String(b.startDate || '').localeCompare(String(a.startDate || ''), 'fa'));
+        mine.forEach(r => {
+          const st = getStatus(r);
+          const stLabel = st === 'active' ? 'فعال' : st === 'soon' ? 'رو به اتمام' : st === 'ended' ? 'تمام شده' : '';
+          const opt = document.createElement('option');
+          opt.value = r.id;
+          opt.textContent = (r.course || 'بدون نام') +
+            (r.courseCode ? ' | کد: ' + r.courseCode : '') +
+            ' | ' + (r.startDate || '') + ' تا ' + (r.endDate || '') +
+            (stLabel ? ' (' + stLabel + ')' : '');
+          if (r.id === editId) opt.selected = true;
+          sel.appendChild(opt);
+        });
+        return;
+      }
+
+      // ثبت جدید
+      if (labelEl) {
+        labelEl.textContent = 'الف : انتخاب دوره های قبلی یا دیدن دوره های جدید تعریف شده در پورتال';
+      }
       const map = {};
       records.forEach(r => {
-        if (!map[r.nationalId]) {
-          map[r.nationalId] = r;
-        }
+        const key = normalizeNationalId(r.nationalId) || r.nationalId;
+        if (key && !map[key]) map[key] = r;
       });
       const current = sel.value;
       sel.innerHTML = '<option value="">— مربی جدید یا انتخاب از لیست —</option>';
@@ -2133,7 +2209,8 @@
         const stats = getInstructorStats(r.nationalId);
         const opt = document.createElement('option');
         opt.value = r.nationalId;
-        opt.textContent = `${r.name} ${r.family} — ${r.nationalId} (فعال: ${stats.active} | تمام: ${stats.ended})`;
+        opt.textContent = r.name + ' ' + r.family + ' — ' + r.nationalId +
+          ' (فعال: ' + stats.active + ' | تمام: ' + stats.ended + ')';
         sel.appendChild(opt);
       });
       if (current) sel.value = current;
@@ -2422,6 +2499,8 @@
         showPhotoPreview(currentPhotoData);
         setSelectedDays(r.days || { sat:true, sun:true, mon:true, tue:true, wed:true });
         showPage('add');
+        // بعد از پر شدن editId و کد ملی: فهرست فقط دورههای همین مربی
+        populateExistingSelect();
       }, 'برای ویرایش این مربی، رمز خود را وارد کنید');
     }
 
@@ -3157,7 +3236,7 @@
 
         <div style="margin-top:18px;padding-top:12px;border-top:1px solid var(--border);font-size:0.8rem;color:var(--muted);text-align:center">
           مرکز فنی و حرفه ای شماره ۸ — شهید سیدابراهیم رئیسی — زندان وکیل آباد مشهد<br>
-          نسخه ۲.۵.۲ • سه شنبه
+          نسخه ۲.۵.۳ • دورههای مربی در ویرایش
         </div>
       `;
       document.getElementById('helpModal').classList.add('show');
