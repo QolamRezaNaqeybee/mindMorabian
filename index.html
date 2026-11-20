@@ -438,7 +438,7 @@
 
       <!-- انتخاب مربی قبلی برای ثبت دوره جدید -->
       <div class="form-group" id="existingInstructorBox">
-        <label>مربی قبلی (برای ثبت دوره جدید بدون وارد کردن دوباره مشخصات)</label>
+        <label>الف : انتخاب دوره های قبلی یا دیدن دوره های جدید تعریف شده در پورتال</label>
         <select id="f-existing" onchange="fillFromExisting()" style="width:100%;padding:12px 14px;border-radius:10px;background:#0f172a;border:1px solid var(--border);color:var(--text);font-size:1rem;">
           <option value="">— مربی جدید یا انتخاب از لیست —</option>
         </select>
@@ -617,7 +617,7 @@
         <strong style="color:var(--text)">شماره تماس:</strong>
         <a href="tel:09303068494" style="color:var(--primary);direction:ltr;display:inline-block">۰۹۳۰۳۰۶۸۴۹۴</a>
         <br><br>
-        نسخه ۲.۴ — یکپارچهسازی خروجیها و حذف موازیکاری
+        نسخه ۲.۵ — نشست ویرایش، دوره تمامشده، نوتیفیکیشن
       </p>
       <button type="button" class="btn btn-secondary" style="margin-top:12px" onclick="openHelpGuide()">
         ❓ راهنمای جامع برنامه
@@ -886,19 +886,39 @@
     }
 
     /**
-     * آیا کاربر فعلی اجازه ویرایش این مربی را دارد؟
-     * هویت مربی با کد ملی است (نه id یک دوره) تا همه دوره های همان نفر قابل ویرایش باشد.
+     * آیا دوره از نظر تاریخ پایان «تمام شده» است؟
+     * (روز مانده منفی یا وضعیت ended)
+     */
+    function isCourseEnded(record) {
+      if (!record) return false;
+      const d = daysUntil(record.endDate);
+      if (d !== null && d < 0) return true;
+      return getStatus(record) === 'ended';
+    }
+
+    /**
+     * آیا کاربر فعلی اجازه ویرایش این مربی/دوره را دارد؟
+     * قواعد:
+     *   - کارشناس آزمون/آموزش: هرگز ویرایش/حذف ندارند (فقط ثبت دوره جدید)
+     *   - اگر تاریخ پایان گذشته باشد: فقط رئیس مرکز
+     *   - در غیر این صورت: رئیس، معاون، یا خود مربی (بر اساس کد ملی)
      */
     function canEditInstructor(record) {
       const role = getCurrentRole();
       if (!role) return false;
+      if (role === 'exam' || role === 'edu') return false;
+
+      // دوره تمام شده: فقط رئیس
+      if (isCourseEnded(record)) {
+        return role === 'boss';
+      }
+
       if (role === 'boss') return true;
       if (role === 'deputy') return true;
       if (role === 'instructor' && currentAuth && currentAuth.nationalId &&
           record && record.nationalId && currentAuth.nationalId === record.nationalId) {
         return true;
       }
-      // کارشناسان آزمون و آموزش حق ویرایش ندارند
       return false;
     }
 
@@ -1815,11 +1835,15 @@
     }
 
     /**
-     * تغییر صفحه + پاک کردن نشست رمز هنگام خروج از منو
-     * تا رمز قبلی در حافظه نماند و برای ورود بعدی آماده باشد
+     * تغییر صفحه
+     * نشست رمز فقط وقتی پاک میشود که کاربر از مسیر ویرایش/ثبت خارج شود
+     * (داشبورد، لیست، ابزار) — نه هنگام رفتن به فرم ثبت/ویرایش،
+     * وگرنه بعد از ورود موفق رئیس، ذخیره بهاشتباه «اجازه ندارید» میدهد.
      */
     function showPage(name) {
-      clearAuthSession();
+      if (name === 'dashboard' || name === 'list' || name === 'tools') {
+        clearAuthSession();
+      }
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
       document.getElementById('page-' + name).classList.add('active');
       document.querySelectorAll('.nav-btn').forEach(b => {
@@ -2128,7 +2152,11 @@
       if (editId) {
         const existing = records.find(r => r.id === editId);
         if (existing && !canEditInstructor(existing)) {
-          toast('شما اجازه ویرایش این مربی را ندارید');
+          if (isCourseEnded(existing) && getCurrentRole() !== 'boss') {
+            toast('این دوره به پایان رسیده؛ فقط رئیس مرکز میتواند آن را ویرایش کند');
+          } else {
+            toast('شما اجازه ویرایش این مربی را ندارید');
+          }
           return;
         }
       } else {
@@ -2294,10 +2322,15 @@
       document.getElementById('detailModal').classList.add('show');
     }
 
+    /**
+     * بستن مودال جزئیات
+     * نشست رمز اینجا پاک نمیشود تا اگر کاربر از مسیر «ویرایش» آمده
+     * و فرم هنوز باز است، ذخیره با نقش رئیس/معاون/مربی ممکن باشد.
+     * پاکسازی نشست هنگام رفتن به داشبورد/لیست/ابزار در showPage انجام میشود.
+     */
     function closeDetail() {
       document.getElementById('detailModal').classList.remove('show');
       currentDetailId = null;
-      clearAuthSession(); // با خروج از منو، نشست رمز پاک میشود
       const modalBtns = document.querySelector('#detailModal .btn-row');
       if (modalBtns) {
         modalBtns.innerHTML = `
@@ -2319,7 +2352,13 @@
       requestPassword(function(auth) {
         // بعد از ورود موفق، سطح دسترسی را چک کن
         if (!canEditInstructor(r)) {
-          toast('شما اجازه ویرایش این مربی را ندارید');
+          if (isCourseEnded(r) && getCurrentRole() && getCurrentRole() !== 'boss') {
+            toast('این دوره به پایان رسیده؛ فقط رئیس مرکز میتواند آن را ویرایش کند');
+          } else if (isCourseEnded(r) && !getCurrentRole()) {
+            toast('این دوره به پایان رسیده؛ فقط رئیس مرکز میتواند آن را ویرایش کند');
+          } else {
+            toast('شما اجازه ویرایش این مربی را ندارید');
+          }
           return;
         }
         closeDetail();
@@ -2369,7 +2408,13 @@
 
       requestPassword(function(auth) {
         const role = getCurrentRole();
-        if (role !== 'boss' && role !== 'deputy') {
+        // دوره تمامشده: فقط رئیس حق حذف دارد
+        if (isCourseEnded(r)) {
+          if (role !== 'boss') {
+            toast('این دوره به پایان رسیده؛ فقط رئیس مرکز میتواند آن را حذف کند');
+            return;
+          }
+        } else if (role !== 'boss' && role !== 'deputy') {
           toast('فقط رئیس یا معاون مرکز میتوانند حذف کنند');
           return;
         }
@@ -2849,18 +2894,73 @@
     }
 
     // ==================== Notifications ====================
+    /**
+     * درخواست مجوز نوتیفیکیشن مرورگر
+     * در صورت عدم پشتیبانی یا رد شدن، راهنمای کامل روی صفحه نمایش داده میشود.
+     * پیشنیازها: HTTPS (یا localhost)، پشتیبانی مرورگر، اجازه کاربر در تنظیمات سایت.
+     */
     function requestNotification() {
+      function showNotifHelp(reason) {
+        document.getElementById('detailTitle').textContent = 'راهنمای فعالسازی نوتیفیکیشن';
+        document.getElementById('detailBody').innerHTML = `
+          <div style="font-size:0.9rem;line-height:1.85;color:var(--text)">
+            <p style="color:var(--warning);font-weight:700;margin-bottom:10px">${reason || 'نوتیفیکیشن فعال نشد.'}</p>
+            <p style="margin-bottom:8px"><strong>چرا ممکن است کار نکند؟</strong></p>
+            <p style="color:var(--muted);margin-bottom:6px">۱) سایت باید با <strong>HTTPS</strong> باز شده باشد (آدرس با https شروع شود). روی HTTP معمولی مرورگر اجازه نمیدهد.</p>
+            <p style="color:var(--muted);margin-bottom:6px">۲) مرورگر باید از Notification پشتیبانی کند (کروم، اج، فایرفاکس بهروز؛ بعضی مرورگرهای داخلبرنامهای محدودیت دارند).</p>
+            <p style="color:var(--muted);margin-bottom:6px">۳) اگر یکبار «مسدود / Block» زده باشید، دکمه برنامه دیگر کافی نیست و باید از تنظیمات مرورگر اجازه بدهید.</p>
+            <p style="margin:12px 0 8px"><strong>فعالسازی در Chrome اندروید:</strong></p>
+            <p style="color:var(--muted);margin-bottom:6px">• منوی ⋮ → Settings → Site settings → Notifications → این سایت را Allowed کنید<br>
+            یا قفل کنار آدرس → Permissions → Notifications → Allow</p>
+            <p style="margin:12px 0 8px"><strong>فعالسازی در Safari آیفون:</strong></p>
+            <p style="color:var(--muted);margin-bottom:6px">• Settings سیستم → Safari → Notifications<br>
+            • همچنین Settings → Notifications → Safari را روشن کنید<br>
+            • اگر سایت را به Home Screen اضافه کردهاید، مجوز را برای همان وباپ بررسی کنید</p>
+            <p style="margin:12px 0 8px"><strong>دسکتاپ:</strong></p>
+            <p style="color:var(--muted);margin-bottom:6px">آیکون قفل/اطلاعات کنار آدرس سایت → Notifications → Allow → سپس دوباره همین دکمه را در برنامه بزنید.</p>
+            <p style="margin-top:12px;color:var(--muted);font-size:0.85rem">پس از Allow، دوباره دکمه «فعالسازی نوتیفیکیشن» را در صفحه ابزار لمس کنید.</p>
+          </div>`;
+        const modalBtns = document.querySelector('#detailModal .btn-row');
+        if (modalBtns) {
+          modalBtns.innerHTML = `<button class="btn btn-secondary" onclick="closeDetail()">بستن</button>`;
+        }
+        document.getElementById('detailModal').classList.add('show');
+      }
+
+      if (!window.isSecureContext) {
+        showNotifHelp('این صفحه در بستر امن (HTTPS) نیست؛ مرورگر اجازه نوتیفیکیشن نمیدهد.');
+        return;
+      }
       if (!('Notification' in window)) {
-        toast('مرورگر شما از نوتیفیکیشن پشتیبانی نمیکند');
+        showNotifHelp('این مرورگر از نوتیفیکیشن پشتیبانی نمیکند. از Chrome یا مرورگر بهروز دیگری استفاده کنید.');
+        return;
+      }
+      if (Notification.permission === 'granted') {
+        toast('نوتیفیکیشن از قبل فعال است');
+        document.getElementById('notifBtn').textContent = 'نوتیفیکیشن فعال است ✓';
+        try {
+          new Notification('مرکز ۸', { body: 'نوتیفیکیشن با موفقیت فعال است.', dir: 'rtl' });
+        } catch (e) {}
+        return;
+      }
+      if (Notification.permission === 'denied') {
+        showNotifHelp('قبلاً نوتیفیکیشن برای این سایت مسدود شده است. باید از تنظیمات مرورگر آن را Allow کنید.');
         return;
       }
       Notification.requestPermission().then(p => {
         if (p === 'granted') {
           toast('نوتیفیکیشن فعال شد');
           document.getElementById('notifBtn').textContent = 'نوتیفیکیشن فعال است ✓';
+          try {
+            new Notification('مرکز ۸', { body: 'نوتیفیکیشن فعال شد.', dir: 'rtl' });
+          } catch (e) {}
+        } else if (p === 'denied') {
+          showNotifHelp('اجازه نوتیفیکیشن رد شد. برای فعالسازی از تنظیمات مرورگر اقدام کنید.');
         } else {
-          toast('اجازه داده نشد');
+          showNotifHelp('وضعیت مجوز نامشخص است. تنظیمات نوتیفیکیشن سایت را در مرورگر بررسی کنید.');
         }
+      }).catch(function() {
+        showNotifHelp('درخواست مجوز با خطا روبهرو شد. مرورگر یا تنظیمات سیستم را بررسی کنید.');
       });
     }
 
@@ -3030,7 +3130,7 @@
 
         <div style="margin-top:18px;padding-top:12px;border-top:1px solid var(--border);font-size:0.8rem;color:var(--muted);text-align:center">
           مرکز فنی و حرفه ای شماره ۸ — شهید سیدابراهیم رئیسی — زندان وکیل آباد مشهد<br>
-          نسخه ۲.۴ • خروجی یکپارچه اکسل و گزارش
+          نسخه ۲.۵ • اصلاح ویرایش و نوتیف
         </div>
       `;
       document.getElementById('helpModal').classList.add('show');
