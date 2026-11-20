@@ -551,27 +551,30 @@
 
   <!-- Tools -->
   <div class="page" id="page-tools">
+    <!--
+      خروجیها فقط از این صفحه و با کنترل نقش انجام میشود.
+      اکسل و گزارش با عکس دیگر داخل جزئیات مربی نیستند تا دسترسی دور زده نشود.
+    -->
     <div class="card">
-      <h3 style="margin-bottom:12px">خروجی اکسل</h3>
-      <p style="font-size:0.9rem;color:var(--muted);margin-bottom:14px">
-        مربی: فقط اطلاعات خودش. رئیس و معاون: انتخاب مربیان یا همه.
-        کارشناسان به این بخش دسترسی ندارند.
+      <h3 style="margin-bottom:12px">خروجی اکسل + ارسال به بله</h3>
+      <p style="font-size:0.9rem;color:var(--muted);margin-bottom:14px;line-height:1.75">
+        پس از ورود با رمز:
+        <br>• <strong>مربی:</strong> فقط دورههای خودش را انتخاب و فایل اکسل میگیرد.
+        <br>• <strong>رئیس / معاون:</strong> انتخاب مربی و دوره، دانلود اکسل، و در صورت تمایل باز کردن بله رئیس و معاون برای ارسال فایل.
+        <br>• <strong>کارشناس:</strong> دسترسی ندارد (اخطار قرمز).
       </p>
-      <button class="btn btn-success" onclick="handleExcelExportClick()">⬇ دانلود خروجی بصورت فایل اکسل</button>
+      <button class="btn btn-success" onclick="handleUnifiedExcelExport()">⬇ دانلود خروجی اکسل / ارسال به بله</button>
     </div>
 
     <div class="card" style="margin-top:12px">
-      <h3 style="margin-bottom:12px">خروجی انتخابی + ارسال به بله</h3>
-      <p style="font-size:0.9rem;color:var(--muted);margin-bottom:14px">
-        مخصوص <strong>رئیس و معاون مرکز</strong>: انتخاب چند مربی، دانلود اکسل و باز کردن لینک بله مسئولان برای ارسال فایل.
+      <h3 style="margin-bottom:12px">گزارش با عکس (HTML)</h3>
+      <p style="font-size:0.9rem;color:var(--muted);margin-bottom:14px;line-height:1.75">
+        گزارش کامل با عکس و مشخصات — فقط از این منو و با همان سختگیری نقش:
+        <br>• رئیس / معاون: انتخاب مربی و دوره
+        <br>• مربی: فقط دورههای انتخابی خودش
+        <br>• کارشناس: بدون دسترسی
       </p>
-      <button class="btn btn-primary" onclick="openSelectiveExport()">📋 انتخاب مربیان و ارسال به بله</button>
-    </div>
-
-    <div class="card" style="margin-top:12px">
-      <h3 style="margin-bottom:12px">خروجی با عکس (HTML)</h3>
-      <p style="font-size:0.9rem;color:var(--muted);margin-bottom:14px">یک فایل HTML که عکسها را هم نشان میدهد و میتوانی چاپ یا PDF کنی.</p>
-      <button class="btn btn-primary" onclick="exportHtmlReport()">⬇ دانلود گزارش با عکس</button>
+      <button class="btn btn-primary" onclick="handleHtmlReportClick()">⬇ دانلود گزارش با عکس</button>
     </div>
 
     <div class="card" style="margin-top:12px">
@@ -614,7 +617,7 @@
         <strong style="color:var(--text)">شماره تماس:</strong>
         <a href="tel:09303068494" style="color:var(--primary);direction:ltr;display:inline-block">۰۹۳۰۳۰۶۸۴۹۴</a>
         <br><br>
-        نسخه ۲.۳ — اصلاح نگارش فارسی + تقویت مستندات کد
+        نسخه ۲.۴ — یکپارچهسازی خروجیها و حذف موازیکاری
       </p>
       <button type="button" class="btn btn-secondary" style="margin-top:12px" onclick="openHelpGuide()">
         ❓ راهنمای جامع برنامه
@@ -2248,46 +2251,13 @@
       }
       const stats = getInstructorStats(r.nationalId);
 
-      // گزینههای ارسال به بله مسئولانی که لینک بله دارند
-      const staff = getStaff();
-      const staffBaleOptions = [];
-      STAFF_ROLES.forEach(role => {
-        const s = staff[role.key];
-        if (s && s.bale && String(s.bale).trim()) {
-          staffBaleOptions.push({ key: role.key, title: role.title, bale: s.bale.trim() });
-        }
-      });
-      let sendToStaffHtml = '';
-      if (staffBaleOptions.length > 0) {
-        sendToStaffHtml = `
-          <div style="margin-top:12px;padding:12px;background:#0f172a;border-radius:10px;border:1px solid var(--border)">
-            <div style="font-size:0.85rem;font-weight:700;margin-bottom:8px">📤 ارسال فایل اکسل به بله مسئولان</div>
-            <p style="font-size:0.75rem;color:var(--muted);margin-bottom:8px">پس از دانلود اکسل، مسئولانی را که لینک بله دارند انتخاب کنید تا صفحه بله آنها باز شود و بتوانید فایل را برایشان بفرستید.</p>
-            ${staffBaleOptions.map(o => `
-              <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:0.85rem">
-                <input type="checkbox" class="detail-bale-target" value="${escapeHtml(o.bale)}" data-title="${escapeHtml(o.title)}" style="width:18px;height:18px" />
-                ${escapeHtml(o.title)}
-              </label>
-            `).join('')}
-            <button type="button" class="btn btn-primary btn-sm" style="margin-top:8px;width:100%"
-              onclick="downloadInstructorExcel('${escapeHtml(r.nationalId)}', true)">
-              ⬇ دانلود اکسل + باز کردن بلههای انتخابشده
-            </button>
-          </div>`;
-      } else {
-        sendToStaffHtml = `
-          <div style="margin-top:10px;font-size:0.8rem;color:var(--muted)">
-            هنوز هیچ مسئولی لینک بله ثبت نکرده است. فقط میتوانید اکسل را دانلود کنید.
-          </div>`;
-      }
-
-      const exportSelfHtml = `
-        <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
-          <button type="button" class="btn btn-success" style="width:100%;margin-bottom:8px"
-            onclick="downloadInstructorExcel('${escapeHtml(r.nationalId)}', false)">
-            ⬇ دانلود اکسل اطلاعات این مربی
-          </button>
-          ${sendToStaffHtml}
+      /**
+       * خروجی اکسل و گزارش با عکس از جزئیات مربی حذف شدهاند
+       * تا دسترسی نقشمحور دور زده نشود. همه خروجیها فقط از صفحه ابزار.
+       */
+      const exportHintHtml = `
+        <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px;font-size:0.85rem;color:var(--muted);line-height:1.7">
+          برای دریافت فایل اکسل یا گزارش با عکس، از صفحه <strong style="color:var(--primary)">ابزار</strong> و پس از ورود با رمز استفاده کنید.
         </div>`;
 
       // لاگ تغییرات
@@ -2317,7 +2287,7 @@
             <span style="color:var(--muted)">● دوره های تمام شده: ${stats.ended}</span>
           </div>
           <div style="margin-top:8px">${statusBadge(st)}</div>
-          ${exportSelfHtml}
+          ${exportHintHtml}
           ${logHtml}
         </div>
       `;
@@ -2447,157 +2417,22 @@
     }
 
     /**
-     * دانلود اکسل یک مربی (بر اساس کد ملی)
-     * اگر openBale=true باشد، لینکهای بله تیکخورده در مودال جزئیات را باز میکند
+     * ═══════════════════════════════════════════════════════════════
+     * خروجی یکپارچه اکسل + گزارش HTML با عکس
+     * ───────────────────────────────────────────────────────────────
+     * قواعد مشترک:
+     *   - کارشناس: رد با اخطار قرمز
+     *   - مربی: فقط دورههای خودش (با انتخاب دوره)
+     *   - رئیس/معاون: انتخاب مربی و سپس انتخاب دوره؛ در اکسل امکان بله رئیس/معاون
+     * جزئیات مربی دیگر دکمه خروجی ندارد تا دسترسی دور زده نشود.
+     * ═══════════════════════════════════════════════════════════════
      */
-    function downloadInstructorExcel(nationalId, openBale) {
-      const records = getRecords().filter(r => r.nationalId === nationalId);
-      if (records.length === 0) {
-        toast('دورهای برای این مربی یافت نشد');
-        return;
-      }
-      const sample = records[0];
-      const csv = buildCsvFromRecords(records);
-      downloadCsvFile(csv, `مربی-${sample.name}-${sample.family}-${new Date().toISOString().slice(0,10)}.csv`);
-      toast('فایل اکسل این مربی دانلود شد');
-
-      if (openBale) {
-        const checked = document.querySelectorAll('.detail-bale-target:checked');
-        if (checked.length === 0) {
-          toast('هیچ گیرندهای انتخاب نشده — فقط فایل دانلود شد');
-          return;
-        }
-        // باز کردن لینکهای بله با فاصله کوتاه تا مرورگر مسدود نکند
-        let delay = 500;
-        checked.forEach(cb => {
-          const link = cb.value;
-          setTimeout(() => {
-            try { window.open(link, '_blank'); } catch (e) {}
-          }, delay);
-          delay += 400;
-        });
-        toast('صفحه بله گیرندگان باز میشود — فایل دانلودشده را برایشان ارسال کنید');
-      }
-    }
 
     /**
-     * خروجی انتخابی مربیان + ارسال به بله مسئولان (فقط رئیس و معاون)
+     * نقطه ورود دکمه اکسل صفحه ابزار
+     * mode داخلی: 'excel'
      */
-    function openSelectiveExport() {
-      requestPassword(function(auth) {
-        const role = getCurrentRole();
-        if (role !== 'boss' && role !== 'deputy') {
-          toast('فقط رئیس یا معاون مرکز به این بخش دسترسی دارند');
-          return;
-        }
-        showSelectiveExportModal();
-      }, 'برای خروجی انتخابی و ارسال به بله، رمز رئیس یا معاون را وارد کنید');
-    }
-
-    function showSelectiveExportModal() {
-      const records = getRecords();
-      // یکتایی بر اساس کد ملی برای انتخاب مربی
-      const byNational = {};
-      records.forEach(r => {
-        if (!byNational[r.nationalId]) {
-          byNational[r.nationalId] = r;
-        }
-      });
-      const instructors = Object.values(byNational);
-
-      const staff = getStaff();
-      const recipients = [];
-      STAFF_ROLES.forEach(role => {
-        const s = staff[role.key];
-        if (s && s.bale && String(s.bale).trim()) {
-          recipients.push({ key: role.key, title: role.title, bale: s.bale.trim() });
-        }
-      });
-
-      let instructorChecks = instructors.length === 0
-        ? '<p style="color:var(--muted)">هنوز مربی ثبت نشده</p>'
-        : instructors.map(r => `
-            <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:0.85rem">
-              <input type="checkbox" class="sel-inst" value="${escapeHtml(r.nationalId)}" style="width:18px;height:18px" />
-              ${escapeHtml(r.name)} ${escapeHtml(r.family)} — ${escapeHtml(r.nationalId)}
-            </label>
-          `).join('');
-
-      let recipientChecks = recipients.length === 0
-        ? '<p style="color:var(--muted);font-size:0.85rem">هیچ مسئولی لینک بله ندارد</p>'
-        : recipients.map(o => `
-            <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:0.85rem">
-              <input type="checkbox" class="sel-recv" value="${escapeHtml(o.bale)}" style="width:18px;height:18px" />
-              ${escapeHtml(o.title)}
-            </label>
-          `).join('');
-
-      document.getElementById('detailTitle').textContent = 'خروجی انتخابی + ارسال به بله';
-      document.getElementById('detailBody').innerHTML = `
-        <div style="font-size:0.9rem">
-          <p style="color:var(--muted);margin-bottom:12px">مربیان مورد نظر را انتخاب کنید، فایل اکسل دانلود میشود؛ در صورت انتخاب گیرندگان، صفحه بله آنها باز میشود تا فایل را ارسال کنید.</p>
-          <h4 style="margin-bottom:8px">انتخاب مربیان</h4>
-          <div style="max-height:180px;overflow-y:auto;margin-bottom:14px;padding:8px;background:#0f172a;border-radius:8px">
-            <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:0.85rem;color:var(--primary)">
-              <input type="checkbox" id="selAllInst" onchange="document.querySelectorAll('.sel-inst').forEach(c=>c.checked=this.checked)" style="width:18px;height:18px" />
-              انتخاب همه
-            </label>
-            ${instructorChecks}
-          </div>
-          <h4 style="margin-bottom:8px">ارسال به بله (اختیاری)</h4>
-          <div style="margin-bottom:14px;padding:8px;background:#0f172a;border-radius:8px">
-            ${recipientChecks}
-          </div>
-          <button type="button" class="btn btn-success" style="width:100%" onclick="runSelectiveExport()">
-            ⬇ دانلود اکسل انتخابشده + باز کردن بله
-          </button>
-        </div>
-      `;
-      // دکمههای پایین مودال را فقط بستن بگذار
-      const modalBtns = document.querySelector('#detailModal .btn-row');
-      if (modalBtns) {
-        modalBtns.innerHTML = `<button class="btn btn-secondary" onclick="closeDetail()">بستن</button>`;
-      }
-      document.getElementById('detailModal').classList.add('show');
-    }
-
-    function runSelectiveExport() {
-      const checkedInst = document.querySelectorAll('.sel-inst:checked');
-      if (checkedInst.length === 0) {
-        toast('حداقل یک مربی را انتخاب کنید');
-        return;
-      }
-      const nationalIds = Array.from(checkedInst).map(c => c.value);
-      const records = getRecords().filter(r => nationalIds.includes(r.nationalId));
-      if (records.length === 0) {
-        toast('رکوردی یافت نشد');
-        return;
-      }
-      const csv = buildCsvFromRecords(records);
-      downloadCsvFile(csv, `انتخابی-مربیان-${new Date().toISOString().slice(0,10)}.csv`);
-      toast('فایل اکسل دانلود شد (' + records.length + ' ردیف)');
-
-      const recvs = document.querySelectorAll('.sel-recv:checked');
-      if (recvs.length > 0) {
-        let delay = 500;
-        recvs.forEach(cb => {
-          setTimeout(() => {
-            try { window.open(cb.value, '_blank'); } catch (e) {}
-          }, delay);
-          delay += 400;
-        });
-        toast('صفحه بله گیرندگان باز میشود');
-      }
-    }
-
-    /**
-     * کلیک روی «دانلود خروجی بصورت فایل اکسل»
-     * پس از ورود با رمز:
-     *   - مربی → فقط اطلاعات خودش
-     *   - رئیس/معاون → پنجره انتخاب مربیان یا همه
-     *   - کارشناس → اخطار قرمز با متن زرد چشمکزن
-     */
-    function handleExcelExportClick() {
+    function handleUnifiedExcelExport() {
       requestPassword(function(auth) {
         const role = getCurrentRole();
         if (role === 'exam' || role === 'edu') {
@@ -2605,58 +2440,141 @@
           return;
         }
         if (role === 'instructor') {
-          // هویت مربی با کد ملی
-          const nid = (currentAuth && currentAuth.nationalId) || '';
-          if (!nid) {
-            toast('اطلاعات این مربی یافت نشد');
-            return;
-          }
-          downloadInstructorExcel(nid, false);
+          showCoursePickerModal('excel', 'instructor');
           return;
         }
         if (role === 'boss' || role === 'deputy') {
-          // نمایش انتخاب مربیان (بدون بخش بله — فقط اکسل)
-          showExcelSelectModal();
+          showCoursePickerModal('excel', 'manager');
           return;
         }
         showAccessDenied('دسترسی فقط مخصوص ریاست و معاون و مربیان محترم میباشد .');
-      }, 'برای دریافت خروجی اکسل، رمز خود را وارد کنید');
+      }, 'برای خروجی اکسل، رمز خود را وارد کنید');
     }
 
     /**
-     * مودال انتخاب مربیان برای رئیس/معاون (فقط دانلود اکسل)
+     * نقطه ورود گزارش HTML با عکس
      */
-    function showExcelSelectModal() {
-      const records = getRecords();
-      const byNational = {};
-      records.forEach(r => {
-        if (!byNational[r.nationalId]) byNational[r.nationalId] = r;
-      });
-      const instructors = Object.values(byNational);
-      let instructorChecks = instructors.length === 0
-        ? '<p style="color:var(--muted)">هنوز مربی ثبت نشده</p>'
-        : instructors.map(r => `
-            <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:0.85rem">
-              <input type="checkbox" class="excel-sel-inst" value="${escapeHtml(r.nationalId)}" style="width:18px;height:18px" />
-              ${escapeHtml(r.name)} ${escapeHtml(r.family)} — ${escapeHtml(r.nationalId)}
-            </label>
-          `).join('');
+    function handleHtmlReportClick() {
+      requestPassword(function(auth) {
+        const role = getCurrentRole();
+        if (role === 'exam' || role === 'edu') {
+          showAccessDenied('دسترسی فقط مخصوص ریاست و معاون و مربیان محترم میباشد .');
+          return;
+        }
+        if (role === 'instructor') {
+          showCoursePickerModal('html', 'instructor');
+          return;
+        }
+        if (role === 'boss' || role === 'deputy') {
+          showCoursePickerModal('html', 'manager');
+          return;
+        }
+        showAccessDenied('دسترسی فقط مخصوص ریاست و معاون و مربیان محترم میباشد .');
+      }, 'برای گزارش با عکس، رمز خود را وارد کنید');
+    }
 
-      document.getElementById('detailTitle').textContent = 'انتخاب مربیان برای خروجی اکسل';
-      document.getElementById('detailBody').innerHTML = `
-        <div style="font-size:0.9rem">
-          <p style="color:var(--muted);margin-bottom:12px">مربیان مورد نظر را انتخاب کنید یا همه را برگزینید.</p>
-          <div style="max-height:220px;overflow-y:auto;margin-bottom:14px;padding:8px;background:#0f172a;border-radius:8px">
-            <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:0.85rem;color:var(--primary)">
-              <input type="checkbox" onchange="document.querySelectorAll('.excel-sel-inst').forEach(c=>c.checked=this.checked)" style="width:18px;height:18px" />
-              انتخاب همه
+    /**
+     * مودال انتخاب مربی/دوره برای خروجی
+     * @param {'excel'|'html'} mode نوع خروجی
+     * @param {'instructor'|'manager'} who سطح کاربر
+     *
+     * جریان مدیر:
+     *   1) تیک مربیان
+     *   2) تیک دورههای مربوط به مربیان انتخابشده
+     *   3) در حالت excel: تیک اختیاری بله رئیس و معاون
+     * جریان مربی:
+     *   فقط لیست دورههای خودش با تیک
+     */
+    function showCoursePickerModal(mode, who) {
+      const records = getRecords();
+      const isExcel = mode === 'excel';
+      const title = isExcel ? 'خروجی اکسل' : 'گزارش با عکس (HTML)';
+
+      let bodyHtml = '';
+
+      if (who === 'instructor') {
+        const nid = (currentAuth && currentAuth.nationalId) || '';
+        const mine = records.filter(r => r.nationalId === nid);
+        if (mine.length === 0) {
+          toast('دورهای برای شما ثبت نشده است');
+          return;
+        }
+        bodyHtml = `
+          <p style="color:var(--muted);font-size:0.85rem;margin-bottom:10px">دورههای خود را انتخاب کنید، سپس دانلود را بزنید.</p>
+          <div style="max-height:240px;overflow-y:auto;padding:8px;background:#0f172a;border-radius:8px;margin-bottom:12px">
+            <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;color:var(--primary);font-size:0.85rem">
+              <input type="checkbox" onchange="document.querySelectorAll('.pick-course').forEach(c=>c.checked=this.checked)" style="width:18px;height:18px" />
+              انتخاب همه دورههای من
             </label>
-            ${instructorChecks}
+            ${mine.map(r => `
+              <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;font-size:0.85rem">
+                <input type="checkbox" class="pick-course" value="${escapeHtml(r.id)}" style="width:18px;height:18px;margin-top:2px" />
+                <span><strong>${escapeHtml(r.course)}</strong>${r.courseCode ? ' — کد: ' + escapeHtml(r.courseCode) : ''}<br>
+                <span style="color:var(--muted)">${r.startDate} تا ${r.endDate}</span></span>
+              </label>
+            `).join('')}
           </div>
-          <button type="button" class="btn btn-success" style="width:100%" onclick="runExcelSelectDownload()">
-            ⬇ دانلود خروجی بصورت فایل اکسل
-          </button>
-        </div>`;
+          <button type="button" class="btn btn-success" style="width:100%" onclick="runPickedExport('${mode}','instructor')">
+            ⬇ ${isExcel ? 'دانلود اکسل' : 'دانلود گزارش HTML'}
+          </button>`;
+      } else {
+        // مدیر: مربیان یکتا
+        const byN = {};
+        records.forEach(r => { if (!byN[r.nationalId]) byN[r.nationalId] = r; });
+        const instructors = Object.values(byN);
+        const instList = instructors.length === 0
+          ? '<p style="color:var(--muted)">مربی ثبت نشده</p>'
+          : instructors.map(r => `
+              <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:0.85rem">
+                <input type="checkbox" class="pick-inst" value="${escapeHtml(r.nationalId)}"
+                  onchange="refreshManagerCourseList()" style="width:18px;height:18px" />
+                ${escapeHtml(r.name)} ${escapeHtml(r.family)} — ${escapeHtml(r.nationalId)}
+              </label>`).join('');
+
+        // بله فقط رئیس و معاون (طبق ادغام خروجی)
+        const staff = getStaff();
+        let baleHtml = '';
+        if (isExcel) {
+          const recips = [];
+          if (staff.boss && staff.boss.bale) recips.push({ title: 'رئیس مرکز', bale: staff.boss.bale.trim() });
+          if (staff.deputy && staff.deputy.bale) recips.push({ title: 'معاون مرکز', bale: staff.deputy.bale.trim() });
+          if (recips.length) {
+            baleHtml = `
+              <h4 style="margin:12px 0 8px;font-size:0.95rem">ارسال به بله (اختیاری)</h4>
+              <div style="padding:8px;background:#0f172a;border-radius:8px;margin-bottom:12px">
+                ${recips.map(o => `
+                  <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:0.85rem">
+                    <input type="checkbox" class="pick-bale" value="${escapeHtml(o.bale)}" style="width:18px;height:18px" />
+                    ${escapeHtml(o.title)}
+                  </label>`).join('')}
+              </div>`;
+          } else {
+            baleHtml = `<p style="font-size:0.8rem;color:var(--muted);margin:8px 0">لینک بله رئیس/معاون ثبت نشده — فقط فایل دانلود میشود.</p>`;
+          }
+        }
+
+        bodyHtml = `
+          <p style="color:var(--muted);font-size:0.85rem;margin-bottom:10px">ابتدا مربی، سپس دوره را انتخاب کنید.</p>
+          <h4 style="margin-bottom:8px;font-size:0.95rem">۱. مربیان</h4>
+          <div style="max-height:140px;overflow-y:auto;padding:8px;background:#0f172a;border-radius:8px;margin-bottom:10px">
+            <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;color:var(--primary);font-size:0.85rem">
+              <input type="checkbox" onchange="document.querySelectorAll('.pick-inst').forEach(c=>{c.checked=this.checked});refreshManagerCourseList()" style="width:18px;height:18px" />
+              انتخاب همه مربیان
+            </label>
+            ${instList}
+          </div>
+          <h4 style="margin-bottom:8px;font-size:0.95rem">۲. دورهها</h4>
+          <div id="managerCourseBox" style="max-height:160px;overflow-y:auto;padding:8px;background:#0f172a;border-radius:8px;margin-bottom:10px;font-size:0.85rem;color:var(--muted)">
+            ابتدا حداقل یک مربی را انتخاب کنید.
+          </div>
+          ${baleHtml}
+          <button type="button" class="btn btn-success" style="width:100%" onclick="runPickedExport('${mode}','manager')">
+            ⬇ ${isExcel ? 'دانلود اکسل + بله (در صورت انتخاب)' : 'دانلود گزارش HTML'}
+          </button>`;
+      }
+
+      document.getElementById('detailTitle').textContent = title;
+      document.getElementById('detailBody').innerHTML = bodyHtml;
       const modalBtns = document.querySelector('#detailModal .btn-row');
       if (modalBtns) {
         modalBtns.innerHTML = `<button class="btn btn-secondary" onclick="closeDetail()">بستن</button>`;
@@ -2664,29 +2582,84 @@
       document.getElementById('detailModal').classList.add('show');
     }
 
-    function runExcelSelectDownload() {
-      const checked = document.querySelectorAll('.excel-sel-inst:checked');
-      if (checked.length === 0) {
-        toast('حداقل یک مربی را انتخاب کنید');
+    /**
+     * پس از تغییر تیک مربیان، لیست دورههای مربوط را در باکس مدیر پر میکند
+     */
+    function refreshManagerCourseList() {
+      const box = document.getElementById('managerCourseBox');
+      if (!box) return;
+      const nids = Array.from(document.querySelectorAll('.pick-inst:checked')).map(c => c.value);
+      if (nids.length === 0) {
+        box.innerHTML = 'ابتدا حداقل یک مربی را انتخاب کنید.';
+        box.style.color = 'var(--muted)';
         return;
       }
-      const nationalIds = Array.from(checked).map(c => c.value);
-      const records = getRecords().filter(r => nationalIds.includes(r.nationalId));
-      if (records.length === 0) {
-        toast('رکوردی یافت نشد');
+      const courses = getRecords().filter(r => nids.includes(r.nationalId));
+      if (courses.length === 0) {
+        box.innerHTML = 'دورهای برای مربیان انتخابشده نیست.';
         return;
       }
-      const csv = buildCsvFromRecords(records);
-      downloadCsvFile(csv, 'morabian-excel-' + makeBackupLabel(new Date()) + '.csv');
-      toast('فایل اکسل دانلود شد (' + records.length + ' ردیف)');
+      box.style.color = 'var(--text)';
+      box.innerHTML = `
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;color:var(--primary)">
+          <input type="checkbox" onchange="document.querySelectorAll('.pick-course').forEach(c=>c.checked=this.checked)" style="width:18px;height:18px" />
+          انتخاب همه دورههای نمایشدادهشده
+        </label>
+        ${courses.map(r => `
+          <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px">
+            <input type="checkbox" class="pick-course" value="${escapeHtml(r.id)}" style="width:18px;height:18px;margin-top:2px" />
+            <span><strong>${escapeHtml(r.name)} ${escapeHtml(r.family)}</strong> — ${escapeHtml(r.course)}
+            ${r.courseCode ? ' (کد: ' + escapeHtml(r.courseCode) + ')' : ''}<br>
+            <span style="color:var(--muted)">${r.startDate} تا ${r.endDate}</span></span>
+          </label>`).join('')}`;
     }
 
-    function exportHtmlReport() {
-      const records = getRecords();
-      if (records.length === 0) {
-        toast('هیچ دادهای وجود ندارد');
+    /**
+     * اجرای خروجی بر اساس تیکهای مودال
+     */
+    function runPickedExport(mode, who) {
+      const ids = Array.from(document.querySelectorAll('.pick-course:checked')).map(c => c.value);
+      if (ids.length === 0) {
+        toast('حداقل یک دوره را انتخاب کنید');
         return;
       }
+      let records = getRecords().filter(r => ids.includes(r.id));
+
+      // قفل امنیتی مربی: فقط کد ملی خودش
+      if (who === 'instructor') {
+        const nid = (currentAuth && currentAuth.nationalId) || '';
+        records = records.filter(r => r.nationalId === nid);
+      }
+
+      if (records.length === 0) {
+        toast('رکوردی برای خروجی نیست');
+        return;
+      }
+
+      if (mode === 'excel') {
+        const csv = buildCsvFromRecords(records);
+        downloadCsvFile(csv, 'morabian-excel-' + makeBackupLabel(new Date()) + '.csv');
+        toast('فایل اکسل دانلود شد (' + records.length + ' ردیف)');
+
+        // باز کردن بلههای انتخابشده (فقط در مودال مدیر و فقط رئیس/معاون)
+        const bales = document.querySelectorAll('.pick-bale:checked');
+        if (bales.length) {
+          let delay = 500;
+          bales.forEach(cb => {
+            setTimeout(() => { try { window.open(cb.value, '_blank'); } catch (e) {} }, delay);
+            delay += 400;
+          });
+          toast('صفحه بله باز میشود — فایل را ارسال کنید');
+        }
+      } else {
+        downloadHtmlReportForRecords(records);
+      }
+    }
+
+    /**
+     * ساخت و دانلود گزارش HTML با عکس فقط برای رکوردهای دادهشده
+     */
+    function downloadHtmlReportForRecords(records) {
       let html = `<!DOCTYPE html><html lang="fa" dir="rtl"><head><meta charset="UTF-8"><title>گزارش مربیان مرکز ۸</title>
       <style>
         body{font-family:Tahoma,sans-serif;padding:20px;background:#f8fafc;color:#1e293b}
@@ -2702,7 +2675,7 @@
         @media print{.card{break-inside:avoid}}
       </style></head><body>
       <h1>گزارش مربیان مرکز ۸</h1>
-      <p style="text-align:center;color:#64748b">تاریخ گزارش: ${new Date().toLocaleDateString('fa-IR')}</p>`;
+      <p style="text-align:center;color:#64748b">تاریخ گزارش: ${new Date().toLocaleDateString('fa-IR')} — تعداد: ${records.length}</p>`;
 
       records.forEach(r => {
         const st = getStatus(r);
@@ -2717,9 +2690,10 @@
           <div class="info">
             <strong style="font-size:1.15rem">${escapeHtml(r.name)} ${escapeHtml(r.family)}</strong>
             <span class="badge ${stClass}">${stLabel}</span><br>
-            📚 ${escapeHtml(r.course)}<br>
+            📚 نام دوره: ${escapeHtml(r.course)} ${r.courseCode ? ' | کد دوره: ' + escapeHtml(r.courseCode) : ''}<br>
             🆔 ${r.nationalId} | 📞 ${r.phone || '—'}<br>
-            📅 ${r.startDate} تا ${r.endDate} (${formatDaysLeft(daysUntil(r.endDate))})<br>
+            📅 شروع: ${r.startDate} | پایان: ${r.endDate} (${formatDaysLeft(daysUntil(r.endDate))})<br>
+            👥 کارآموز: ${r.traineeCount || '—'} | ✅ قبولی: ${r.passCount || '—'}<br>
             ⏱️ ساعات: ${r.hours || '—'} | 📆 ${formatDays(r.days)}<br>
             ${escapeHtml(r.notes) || ''}
           </div>
@@ -2731,10 +2705,10 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `gozaresh-morabian-${new Date().toISOString().slice(0,10)}.html`;
+      a.download = 'gozaresh-morabian-' + makeBackupLabel(new Date()) + '.html';
       a.click();
       URL.revokeObjectURL(url);
-      toast('گزارش HTML دانلود شد');
+      toast('گزارش HTML دانلود شد (' + records.length + ' مورد)');
     }
 
     /**
@@ -2989,7 +2963,7 @@
         <p style="color:var(--muted);margin-bottom:6px">• <strong>داشبورد:</strong> آمار دوره های فعال / رو به اتمام / کل، کارتهای چهار مسئول، لیست نزدیکترین پایانها و بنر هشدار.</p>
         <p style="color:var(--muted);margin-bottom:6px">• <strong>لیست:</strong> جستجو بر اساس نام یا کد ملی و فیلتر وضعیت (فعال، رو به اتمام، تمام شده).</p>
         <p style="color:var(--muted);margin-bottom:6px">• <strong>ثبت:</strong> فرم ثبت مربی جدید یا دوره جدید؛ امکان انتخاب مربی قبلی برای پر شدن خودکار مشخصات.</p>
-        <p style="color:var(--muted);margin-bottom:10px">• <strong>ابزار:</strong> خروجی اکسل نقش محوری، خروجی انتخابی + بله، گزارش HTML با عکس، نوتیفیکیشن، پشتیبانگیری و بازیابی، درباره و همین راهنما.</p>
+        <p style="color:var(--muted);margin-bottom:10px">• <strong>ابزار:</strong> خروجی اکسل یکپارچه + بله، گزارش HTML با عکس (با انتخاب دوره و نقش)، نوتیفیکیشن، پشتیبان، درباره و راهنما.</p>
 
         <h4 style="color:var(--primary);margin:14px 0 8px">۳. مسئولان مرکز (کارتهای رنگی)</h4>
         <p style="color:var(--muted);margin-bottom:6px">چهار نقش: رئیس مرکز، معاون مرکز، مسئول آزمون، مسئول آموزش.</p>
@@ -3025,14 +2999,11 @@
           تا در یک نگاه مشخص باشد کدام رکورد یادداشت دارد.
         </p>
 
-        <h4 style="color:var(--primary);margin:14px 0 8px">۸. خروجی اکسل و ارسال به بله</h4>
-        <p style="color:var(--muted);margin-bottom:6px">• دکمه «دانلود خروجی بصورت فایل اکسل» در صفحه ابزار:</p>
-        <p style="color:var(--muted);margin-bottom:6px">&nbsp;&nbsp;– مربی: فقط فایل خودش</p>
-        <p style="color:var(--muted);margin-bottom:6px">&nbsp;&nbsp;– رئیس/معاون: انتخاب یک یا چند مربی یا همه</p>
-        <p style="color:var(--muted);margin-bottom:6px">&nbsp;&nbsp;– کارشناس: پنجره قرمز اخطار با متن زرد چشمکزن</p>
-        <p style="color:var(--muted);margin-bottom:6px">• در جزئیات هر مربی: دانلود اکسل همان نفر و در صورت وجود لینک بله مسئولان، انتخاب گیرنده و باز شدن صفحه بله.</p>
-        <p style="color:var(--muted);margin-bottom:6px">• «خروجی انتخابی + ارسال به بله» فقط برای رئیس و معاون.</p>
-        <p style="color:var(--muted);margin-bottom:10px">• توجه: مرورگر نمیتواند فایل را مستقیم داخل چت بله بگذارد؛ فایل دانلود میشود و لینک بله باز میگردد تا شما پیوست کنید.</p>
+        <h4 style="color:var(--primary);margin:14px 0 8px">۸. خروجی اکسل و گزارش با عکس (فقط صفحه ابزار)</h4>
+        <p style="color:var(--muted);margin-bottom:6px">• از نسخه ۲.۴ به بعد، هیچ دکمه خروجی داخل پنجره جزئیات مربی نیست تا دسترسی دور زده نشود.</p>
+        <p style="color:var(--muted);margin-bottom:6px">• اکسل + بله: پس از رمز — مربی فقط دورههای خودش را انتخاب میکند؛ رئیس/معاون مربی و دوره را انتخاب میکنند و میتوانند بله رئیس و معاون را برای ارسال فایل باز کنند؛ کارشناس اخطار قرمز میبیند.</p>
+        <p style="color:var(--muted);margin-bottom:6px">• گزارش HTML با عکس: همان سختگیری نقش و انتخاب دوره؛ فایل برای چاپ یا PDF مناسب است.</p>
+        <p style="color:var(--muted);margin-bottom:10px">• مرورگر فایل را مستقیم داخل چت بله نمیفرستد؛ فایل دانلود و صفحه بله باز میشود تا شما پیوست کنید.</p>
 
         <h4 style="color:var(--primary);margin:14px 0 8px">۹. پشتیبانگیری خودکار و بازیابی</h4>
         <p style="color:var(--muted);margin-bottom:6px">• هر ۷۵ ثانیه یک پشتیبان کامل از دادهها داخل حافظه مرورگر ذخیره میشود.</p>
@@ -3048,9 +3019,8 @@
           برای کارشناسان، و برای مربیان. پس از انقضا، برای کار حساس باید دوباره رمز وارد شود.
         </p>
 
-        <h4 style="color:var(--primary);margin:14px 0 8px">۱۱. نوتیفیکیشن و گزارش HTML</h4>
-        <p style="color:var(--muted);margin-bottom:6px">• با فعالسازی نوتیفیکیشن مرورگر، هشدار پایان دوره و یادآوری مسئولان (در صورت تنظیم) نمایش داده میشود.</p>
-        <p style="color:var(--muted);margin-bottom:10px">• گزارش HTML با عکس برای چاپ یا ذخیره بهصورت PDF از روی مرورگر مناسب است.</p>
+        <h4 style="color:var(--primary);margin:14px 0 8px">۱۱. نوتیفیکیشن</h4>
+        <p style="color:var(--muted);margin-bottom:10px">• با فعالسازی نوتیفیکیشن مرورگر، هشدار پایان دوره و یادآوری مسئولان (در صورت تنظیم) نمایش داده میشود. گزارش با عکس در بخش ۸ توضیح داده شده است.</p>
 
         <h4 style="color:var(--primary);margin:14px 0 8px">۱۲. نکات حیاتی نگهداری</h4>
         <p style="color:var(--muted);margin-bottom:6px">• دادهها فقط روی همین دستگاه و همین مرورگر است. تعویض گوشی یا پاک کردن دادههای سایت = از دست رفتن اطلاعات، مگر پشتیبان داشته باشید.</p>
@@ -3060,7 +3030,7 @@
 
         <div style="margin-top:18px;padding-top:12px;border-top:1px solid var(--border);font-size:0.8rem;color:var(--muted);text-align:center">
           مرکز فنی و حرفه ای شماره ۸ — شهید سیدابراهیم رئیسی — زندان وکیل آباد مشهد<br>
-          نسخه ۲.۳ • اصلاح نگارش و مستندات
+          نسخه ۲.۴ • خروجی یکپارچه اکسل و گزارش
         </div>
       `;
       document.getElementById('helpModal').classList.add('show');
