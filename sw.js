@@ -1,8 +1,8 @@
-/* Service Worker — نسخه morabian-v24
+/* Service Worker — نسخه morabian-v25
    تغییر CACHE_NAME باعث میشود مرورگر کش قدیمی را دور بریزد
    و فایلهای جدید (از جمله index.html) را دوباره بگیرد.
 */
-const CACHE_NAME = 'morabian-v24';
+const CACHE_NAME = 'morabian-v25';
 const ASSETS = [
   './',
   './index.html',
